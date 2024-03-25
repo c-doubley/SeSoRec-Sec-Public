@@ -4,6 +4,9 @@ sys.path.append('../reader')  # 添加TrustGetter类所在目录到模块搜索�
 import numpy as np
 from reader.trust import TrustGetter  # 导入TrustGetter类
 from scipy.sparse import csr_matrix, vstack, lil_matrix
+import matplotlib.pyplot as plt
+from util.painting import MatrixPainter
+import random
 
 class Exp:
     def __init__(self, trust_path):
@@ -24,6 +27,38 @@ class Exp:
         dense_matrix = matrix[:output_rows, :output_cols].toarray()
         print(dense_matrix)
 
+    def calculate_similarity_percentage(self, matrix_A, matrix_B):
+        """
+        计算两个稀疏矩阵中相同元素的百分比。
+
+        参数:
+        - matrix_A: 第一个稀疏矩阵 (csr_matrix)
+        - matrix_B: 第二个稀疏矩阵 (csr_matrix)
+
+        返回:
+        - 相同元素的百分比 (float)
+        """
+        # 确保两个矩阵的形状相同
+        assert matrix_A.shape == matrix_B.shape, "两个矩阵的维度必须相同"
+        
+        # 转换成密集形式再比较
+        A_dense = matrix_A.toarray()
+        B_dense = matrix_B.toarray()
+        
+        # 计算相同元素的数量
+        same_elements_count = np.sum(A_dense == B_dense)
+        
+        # 计算总元素数
+        total_elements = matrix_A.shape[0] * matrix_A.shape[1]
+        
+        # 计算相同元素的百分比
+        percentage_same = (same_elements_count / total_elements) * 100
+        
+        return percentage_same
+
+
+
+    # 根据偶数行-奇数行的矩阵还原原始矩阵
     def restore_original_matrix(self, matrix_A):
         rows_A, cols_A = matrix_A.shape
         matrix_B = lil_matrix((2 * rows_A, cols_A), dtype=matrix_A.dtype)  # 所有元素默认为0
@@ -41,19 +76,20 @@ class Exp:
 
         return matrix_B.tocsr()
 
+    # 看泄露了S_B的多少数据
     def leak_SB(self):
         # 创建TrustGetter实例
-        # tg = TrustGetter(self.trust_path)
+        tg = TrustGetter(self.trust_path)
         
-        # # 调用get_relations方法并获取矩阵
-        # matrix = tg.get_relations()
+        # 调用get_relations方法并获取矩阵
+        matrix = tg.get_relations()
 
-        matrix1 = np.array([[1, 0, 1, 0],
-                   [1, 1, 0, 1],
-                   [1, 0, 0, 1],
-                   [1, 1, 1, 1]])
+        # matrix1 = np.array([[1, 0, 1, 0],
+        #            [1, 1, 0, 1],
+        #            [1, 0, 0, 1],
+        #            [1, 1, 1, 1]])
 
-        matrix = csr_matrix(matrix1)
+        matrix = csr_matrix(matrix)
         
         matrix = matrix.tocsr()
     
@@ -75,10 +111,26 @@ class Exp:
         # 将结果行堆叠为一个新的csr_matrix
         leak_matrix = vstack(result_rows)
 
-        self.print_matrix_front(leak_matrix)
+        # self.print_matrix_front(leak_matrix)
 
         restore_matrix = self.restore_original_matrix(leak_matrix)
-        self.print_matrix_front(restore_matrix)
+        # self.print_matrix_front(restore_matrix)
+
+        simi = self.calculate_similarity_percentage(matrix, restore_matrix)
+        print("两个矩阵一样的元素有： ")
+        print(simi)
+
+        random_row = random.randint(0, rows - 50)
+        random_col = random.randint(0, cols - 50)
+        # 创建MatrixPainter实例
+        painter = MatrixPainter(matrix, restore_matrix)
+
+        # 绘制矩阵比较图
+        painter.paint_comparison(random_row, random_col, 50)
+
+
+
+
 
 
 # 使用示例

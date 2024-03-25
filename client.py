@@ -1,7 +1,7 @@
 import socket
 import numpy as np
 import json
-from transfer import send_matrix, receive_matrix
+from util.transfer import send_matrix, receive_matrix
 from omm import OMMProtocol
 from numpy.random import Generator, MT19937, SeedSequence
 
@@ -14,8 +14,9 @@ def main():
 
     # Receiving matrix from server
     # 随机数生成器
-    rg = Generator(MT19937(SeedSequence()))
-    B = rg.integers(low=0, high=np.iinfo(np.uint64).max, size=(2, 2), dtype=np.uint64)
+    # rg = Generator(MT19937(SeedSequence()))
+    # B = rg.integers(low=0, high=np.iinfo(np.uint64).max, size=(2, 2), dtype=np.uint64)
+    B = np.array([[2, 2], [5, 4]], dtype=np.uint64)
 
     C1 = OMMProtocol(client_socket, B, 1)
 

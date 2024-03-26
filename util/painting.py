@@ -2,9 +2,12 @@
 import numpy as np
 from scipy.sparse import csr_matrix
 import matplotlib.pyplot as plt
+import numpy as np
+from PIL import Image
+
 
 class MatrixPainter:
-    def __init__(self, matrix_A, matrix_B):
+    def __init__(self, ):
         """
         初始化MatrixPainter类。
 
@@ -12,10 +15,9 @@ class MatrixPainter:
         - matrix_A: 第一个稀疏矩阵 (csr_matrix)
         - matrix_B: 第二个稀疏矩阵 (csr_matrix)
         """
-        self.matrix_A = matrix_A
-        self.matrix_B = matrix_B
+      
 
-    def paint_comparison(self, row, col, num, file_path='picture/comparison.png'):
+    def paint_comparison(self, matrix_A, matrix_B, row, col, num, file_path='picture/comparison.png'):
         """
         绘制两个矩阵的比较图，并将结果保存为PNG文件。
 
@@ -23,8 +25,8 @@ class MatrixPainter:
         - file_path: 保存图片的路径和文件名 (默认为'picture/comparison.png')
         """
         # 转换为密集格式并仅考虑前10x10的元素
-        dense_A = self.matrix_A.toarray()[row:row+num, col:col+num]
-        dense_B = self.matrix_B.toarray()[row:row+num, col:col+num]
+        dense_A = matrix_A.toarray()[row:row+num, col:col+num]
+        dense_B = matrix_B.toarray()[row:row+num, col:col+num]
 
         # 计算两个矩阵中相同元素的位置
         mask = dense_A == dense_B
@@ -72,6 +74,80 @@ class MatrixPainter:
         # 不显示图形，而是保存到文件
         plt.savefig(file_path, bbox_inches='tight')
         plt.close()
+    
+
+    def minist_painting(self, matrix_A, matrix_B, matrix_C):
+        # 假设A, B, C为图片对应的numpy矩阵
+        # 先将numpy数组转为PIL图片
+        A_img = Image.fromarray(matrix_A)
+        B_img = Image.fromarray(matrix_B)
+        C_img = Image.fromarray(matrix_C)
+
+        # 获取A图片尺寸 进行resize
+        a_width, a_height = A_img.size
+        A_img_resized = A_img.resize((a_width * 2, a_height *2))
+        # B_img_resized = B_img.resize((a_width//2, a_height//2))
+        # C_img_resized = C_img.resize((a_width//2, a_height//2))
+
+        # 再将resize后的B C PIL图片转为numpy数组
+        B_resized = np.array(B_img)
+        C_resized = np.array(C_img)
+
+        # 垂直堆叠B和C图像
+        stacked_BC = np.vstack((B_resized, C_resized))
+        
+        # 水平堆叠A, B_resized, C_resized
+        stacked_imgs = np.hstack((A_img_resized, stacked_BC))
+
+        # 显示并保存图像
+        plt.imshow(stacked_imgs, cmap='gray')
+        plt.axis('off')
+        plt.savefig('picture/stacked.png')
+        plt.show()
+
+
+
+    def stack_images(pics):
+        # 使用函数：
+        # pics = [(A1, B1, C1), (A2, B2, C2), ... , (A5, B5, C5)] 假设这样的列表存在
+        # final_img = stack_images(pics)
+        stacked_imgs_list = []
+
+        for A, B, C in pics:
+            # 将numpy数组转成PIL图片
+            A_img, B_img, C_img = map(Image.fromarray, [A, B, C])
+        
+            # 获取A图像的尺寸
+            a_width, a_height = A_img.size
+        
+            # 将B和C图像调整为A图像宽度的一半
+            B_img_resized = B_img.resize((a_width//2, a_height//2))
+            C_img_resized = C_img.resize((a_width//2, a_height//2))
+
+            # 将resize后的B和C PIL图片转为numpy数组
+            B_resized, C_resized = map(np.array, [B_img_resized, C_img_resized])
+        
+            # 垂直堆叠B和C图像
+            stacked_BC = np.vstack((B_resized, C_resized))
+
+            # 水平堆叠A图像和堆叠后的BC图像
+            stacked_imgs = np.hstack((A, stacked_BC))
+
+            stacked_imgs_list.append(stacked_imgs)
+
+        # 最后我们可以对 stacked_imgs_list 进行垂直堆叠
+        final_stacked_img = np.vstack(stacked_imgs_list)
+
+        # 显示并保存图像
+        # plt.imshow(final_img, cmap='gray')
+        # plt.axis('off')
+        # plt.savefig('picture/final_stacked.png')
+        # plt.show()
+
+        return final_stacked_img
+
+
+
 
 
 # 使用示例
@@ -81,7 +157,7 @@ if __name__ == '__main__':
     A = csr_matrix(np.random.randint(0, 2, size=(50, 50)))
     B = csr_matrix(np.random.randint(0, 2, size=(50, 50)))
     # 创建MatrixPainter实例
-    painter = MatrixPainter(A, B)
+    painter = MatrixPainter()
 
     # 绘制矩阵比较图
-    painter.paint_comparison(30,30)
+    painter.paint_comparison(A, B, 30,30)

@@ -107,48 +107,108 @@ class MatrixPainter:
 
 
 
-    def stack_images(pics):
+    def stack_images(self, pics):
         # 使用函数：
         # pics = [(A1, B1, C1), (A2, B2, C2), ... , (A5, B5, C5)] 假设这样的列表存在
         # final_img = stack_images(pics)
+                   
+        
         stacked_imgs_list = []
+        final_images = []
 
-        for A, B, C in pics:
+        for i, (A, B, C) in enumerate(pics):
             # 将numpy数组转成PIL图片
             A_img, B_img, C_img = map(Image.fromarray, [A, B, C])
         
-            # 获取A图像的尺寸
-            a_width, a_height = A_img.size
-        
-            # 将B和C图像调整为A图像宽度的一半
-            B_img_resized = B_img.resize((a_width//2, a_height//2))
-            C_img_resized = C_img.resize((a_width//2, a_height//2))
-
-            # 将resize后的B和C PIL图片转为numpy数组
-            B_resized, C_resized = map(np.array, [B_img_resized, C_img_resized])
-        
-            # 垂直堆叠B和C图像
-            stacked_BC = np.vstack((B_resized, C_resized))
-
             # 水平堆叠A图像和堆叠后的BC图像
-            stacked_imgs = np.hstack((A, stacked_BC))
+            stacked_imgs = np.hstack((A_img, B_img, C_img))
 
             stacked_imgs_list.append(stacked_imgs)
 
-        # 最后我们可以对 stacked_imgs_list 进行垂直堆叠
-        final_stacked_img = np.vstack(stacked_imgs_list)
+            # 每5次垂直堆叠后进行一次水平堆叠
+            if (i + 1) % 5 == 0:
+                final_images.append(np.vstack(stacked_imgs_list))
+                stacked_imgs_list = []
+            
+        # 为了保证如果有不足五组的情况也能处理，所以我们在循环结束后也要进行垂直堆叠
+        if stacked_imgs_list:
+            final_images.append(np.vstack(stacked_imgs_list))
+        
+        # 最终的垂直堆叠图像进行水平堆叠
+        image = np.hstack(final_images)
 
         # 显示并保存图像
-        # plt.imshow(final_img, cmap='gray')
-        # plt.axis('off')
-        # plt.savefig('picture/final_stacked.png')
-        # plt.show()
+        plt.imshow(image, cmap='gray')
+        plt.axis('off')
+        plt.savefig('picture/final_stacked.png')
+        plt.show()
 
-        return final_stacked_img
+        # return final_stacked_img
+
+    def stack_images(self, pics1, pics2):
+        # 使用函数：
+        # pics = [(A1, B1, C1), (A2, B2, C2), ... , (A5, B5, C5)] 假设这样的列表存在
+        # final_img = stack_images(pics)
+
+        
+        stacked_imgs_list = []
+        final_images1 = []
+        final_images2 = []
+
+        for i, (A, B, C) in enumerate(pics1):
+            # 将numpy数组转成PIL图片
+            A_img, B_img, C_img = map(Image.fromarray, [A, B, C])
+        
+            # 水平堆叠A图像和堆叠后的BC图像
+            stacked_imgs = np.hstack((A_img, B_img, C_img))
+
+            stacked_imgs_list.append(stacked_imgs)
+
+            # 每5次垂直堆叠后进行一次水平堆叠
+            if (i + 1) % 5 == 0:
+                final_images1.append(np.vstack(stacked_imgs_list))
+                stacked_imgs_list = []
+            
+        # 为了保证如果有不足五组的情况也能处理，所以我们在循环结束后也要进行垂直堆叠
+        if stacked_imgs_list:
+            final_images1.append(np.vstack(stacked_imgs_list))
+        
+        # 最终的垂直堆叠图像进行水平堆叠
+        image1 = np.hstack(final_images1)
 
 
+        stacked_imgs_list = []
+        for i, (A, B, C) in enumerate(pics2):
+            # 将numpy数组转成PIL图片
+            A_img, B_img, C_img = map(Image.fromarray, [A, B, C])
+        
+            # 水平堆叠A图像和堆叠后的BC图像
+            stacked_imgs = np.hstack((A_img, B_img, C_img))
+
+            stacked_imgs_list.append(stacked_imgs)
+
+            # 每5次垂直堆叠后进行一次水平堆叠
+            if (i + 1) % 5 == 0:
+                final_images2.append(np.vstack(stacked_imgs_list))
+                stacked_imgs_list = []
+            
+        # 为了保证如果有不足五组的情况也能处理，所以我们在循环结束后也要进行垂直堆叠
+        if stacked_imgs_list:
+            final_images2.append(np.vstack(stacked_imgs_list))
+        
+        # 最终的垂直堆叠图像进行水平堆叠
+        image2 = np.hstack(final_images2)
+
+        image = np.vstack((image1, image2))
 
 
+        # 显示并保存图像
+        plt.imshow(image, cmap='gray')
+        plt.axis('off')
+        plt.savefig('picture/final_stacked.png')
+        plt.show()
+
+        # return final_stacked_img
 
 # 使用示例
 if __name__ == '__main__':

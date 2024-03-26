@@ -10,7 +10,7 @@ class PictureProcessor:
         self.matrix = matrix
 
     def process_matrices(self):
-        matrix = self._add_column_if_needed(self.matrix)
+        # matrix = self._add_column_if_needed(self.matrix)
         leak_left = self._generate_leak_left(matrix)
         restore_left = self._generate_matrix_C(leak_left)
         leak_right = self._generate_matrix_D(matrix)
@@ -60,11 +60,11 @@ class PictureProcessor:
                 if leak_right[i, j] == 0:
                     restore_right[2*i, j] = restore_right[2*i + 1, j] = 0
                 elif leak_right[i, j] < 0:
-                    restore_right[2*i, j] = -leak_right[i, j]
+                    restore_right[2*i, j] = -leak_right[i, j] * 2 
                     restore_right[2*i + 1, j] = 0
                 else:
                     restore_right[2*i, j] = 0
-                    restore_right[2*i + 1, j] = leak_right[i, j]
+                    restore_right[2*i + 1, j] = leak_right[i, j] * 2
         return restore_right
 
 def save_image(matrix, file_path):
@@ -78,30 +78,71 @@ def save_image(matrix, file_path):
 
 # 示例使用
 if __name__ == "__main__":
-    # 随机加载一张标签为0的图片并将其转换为矩阵
-    loader = MNISTLoader("./data/minist")
-    matrix = loader.load_random_image(8)
-    
+
     # 确保picture目录存在
     os.makedirs('picture', exist_ok=True)
-    
-    # 保存选取的图片到picture目录
-    save_image(matrix, 'picture/original_image.png')
-    
-    # 处理矩阵并生成矩阵leak_left和C
-    processor = PictureProcessor(matrix)
-    leak_left, restore_left, leak_right, restore_right = processor.process_matrices()
-    
-    # 保存矩阵C到picture目录
-    save_image(restore_left, 'picture/processed_imageC.png')
-    save_image(restore_right, 'picture/processed_imageE.png')
 
+    loader = MNISTLoader("./data/minist")
+
+    tuple_matrices1 = []
+    tuple_matrices2 = []
+    for i in range(5):
+        list_matrices = loader.load_random_images(i)        
+        for matrix in list_matrices:
+            processor = PictureProcessor(matrix)
+            leak_left, restore_left, leak_right, restore_right = processor.process_matrices()
+            tuple_matrices1.append((matrix, restore_left, restore_right))
+    for i in range(5, 10):
+        list_matrices = loader.load_random_images(i)        
+        for matrix in list_matrices:
+            processor = PictureProcessor(matrix)
+            leak_left, restore_left, leak_right, restore_right = processor.process_matrices()
+            tuple_matrices2.append((matrix, restore_left, restore_right))
+
+    
     painter = MatrixPainter()
     # 绘制矩阵比较图
-    painter.minist_painting(matrix, restore_left, restore_right)
+    painter.stack_images(tuple_matrices1, tuple_matrices2)
 
-    # 输出结果矩阵leak_left和C的形状以验证
-    print("Matrix leak_left shape:", leak_left.shape)
-    print("Matrix restore_left shape:", restore_left.shape)
-    print("Matrix leak_right shape:", leak_right.shape)
-    print("Matrix restore_right shape:", restore_right.shape)
+    # tuple_matrices = []
+    # for i in range(10):
+    #     list_matrices = loader.load_random_images(i)        
+    #     for matrix in list_matrices:
+    #         processor = PictureProcessor(matrix)
+    #         leak_left, restore_left, leak_right, restore_right = processor.process_matrices()
+    #         tuple_matrices.append((matrix, restore_left, restore_right))
+
+    
+    # painter = MatrixPainter()
+    # # 绘制矩阵比较图
+    # painter.stack_images(tuple_matrices)
+
+
+
+    # # 随机加载一张标签为0的图片并将其转换为矩阵
+    # loader = MNISTLoader("./data/minist")
+    # matrix = loader.load_random_image(8)
+    
+    # # 确保picture目录存在
+    # os.makedirs('picture', exist_ok=True)
+    
+    # # 保存选取的图片到picture目录
+    # save_image(matrix, 'picture/original_image.png')
+    
+    # # 处理矩阵并生成矩阵leak_left和C
+    # processor = PictureProcessor(matrix)
+    # leak_left, restore_left, leak_right, restore_right = processor.process_matrices()
+    
+    # # 保存矩阵C到picture目录
+    # save_image(restore_left, 'picture/processed_imageC.png')
+    # save_image(restore_right, 'picture/processed_imageE.png')
+
+    # painter = MatrixPainter()
+    # # 绘制矩阵比较图
+    # painter.minist_painting(matrix, restore_left, restore_right)
+
+    # # 输出结果矩阵leak_left和C的形状以验证
+    # print("Matrix leak_left shape:", leak_left.shape)
+    # print("Matrix restore_left shape:", restore_left.shape)
+    # print("Matrix leak_right shape:", leak_right.shape)
+    # print("Matrix restore_right shape:", restore_right.shape)

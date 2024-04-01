@@ -19,7 +19,7 @@ class TrustGetter(object):
     def __init__(self, trust_path):
         self.trust_path = trust_path
         self.sep = ' '
-        self.get_relations()
+        self.relation_matrix = self.get_relations()
 
 
 

@@ -3,6 +3,7 @@ import sys
 sys.path.append('../reader')  # 添加TrustGetter类所在目录到模块搜索路径
 import numpy as np
 from reader.trust import TrustGetter  # 导入TrustGetter类
+from reader.epinions import EpinionsGetter
 from scipy.sparse import csr_matrix, vstack, lil_matrix
 import matplotlib.pyplot as plt
 from util.painting import MatrixPainter
@@ -77,9 +78,16 @@ class Exp:
         return matrix_B.tocsr()
 
     # 看泄露了S_B的多少数据
-    def leak_SB(self):
+    def leak_SB(self, flag):
+        if flag == "TrustGetter":
+            tg = TrustGetter(self.trust_path)
+        elif flag == "EpinionsGetter":
+            tg = EpinionsGetter(self.trust_path)
+        else:
+            # 当flag既不等于"TrustGetter"也不等于"EpinionsGetter"时执行这里的代码
+            print("flag既不是'TrustGetter'也不是'EpinionsGetter'。")
         # 创建TrustGetter实例
-        tg = TrustGetter(self.trust_path)
+        
         
         # 调用get_relations方法并获取矩阵
         matrix = tg.get_relations()
@@ -117,16 +125,17 @@ class Exp:
         # self.print_matrix_front(restore_matrix)
 
         simi = self.calculate_similarity_percentage(matrix, restore_matrix)
-        print("两个矩阵一样的元素有： ")
-        print(simi)
+        return simi
+        # print("两个矩阵一样的元素有： ")
+        # print(simi)
 
-        random_row = random.randint(0, rows - 50)
-        random_col = random.randint(0, cols - 50)
-        # 创建MatrixPainter实例
-        painter = MatrixPainter(matrix, restore_matrix)
+        # random_row = random.randint(0, rows - 50)
+        # random_col = random.randint(0, cols - 50)
+        # # 创建MatrixPainter实例
+        # painter = MatrixPainter(matrix, restore_matrix)
 
-        # 绘制矩阵比较图
-        painter.paint_comparison(random_row, random_col, 50)
+        # # 绘制矩阵比较图
+        # painter.paint_comparison(random_row, random_col, 50)
 
 
 
@@ -135,5 +144,13 @@ class Exp:
 
 # 使用示例
 if __name__ == '__main__':
-    exp = Exp('./data/ft_trust.txt')  # 假设ft_trust.txt位于data目录
-    exp.leak_SB()
+    # exp_tg = Exp('./data/ft_trust.txt')   
+    # percentage_tg = exp_tg.leak_SB("TrustGetter")
+    # message = f"ft_trust数据集中泄露了{percentage_tg}%的数据"
+    # print(message)
+
+    exp_eg = Exp('./data/epinions.txt')  
+    percentage_eg = exp_eg.leak_SB("EpinionsGetter")
+    message = f"epinions数据集中泄露了{percentage_eg}%的数据"
+    print(message)
+

@@ -1,8 +1,30 @@
+"""
+文件名称: experiment4.py
+
+描述:
+    这个实验效果不是很好最后没有展示结果！！
+
+    这个文件要完成Cifar部分的实验。分为四步
+    1. 从Cifar数据集中选取RGB图像，转换为灰度矩阵
+    2. 生成泄露信息，即矩阵的奇数列+偶数列  偶数行-奇数行
+    3. 根据2种泄露信息重建2个矩阵
+    4. 把原始矩阵+2个重建矩阵画成图像
+
+
+功能:
+    
+
+用法:
+    python experiment4.py
+
+作者: chenyuyue
+日期: 2024/4/28
+"""
 import numpy as np
 from PIL import Image
 import os
 import random
-from reader.minist import MNISTLoader
+from reader.cifar import CIFARLoader
 from util.painting import MatrixPainter
 
 class PictureProcessor:
@@ -36,7 +58,8 @@ class PictureProcessor:
         for i in range(leak_left.shape[0]):
             for j in range(leak_left.shape[1]):
                 if leak_left[i, j] != 0:
-                    restore_left[i, 2*j+1] = leak_left[i, j]
+                    restore_left[i, 2*j] = leak_left[i, j] // 2
+                    restore_left[i, 2*j+1] = leak_left[i, j] // 2
         return restore_left
 
     def _add_row_if_needed(self, matrix):
@@ -82,27 +105,19 @@ if __name__ == "__main__":
     # 确保picture目录存在
     os.makedirs('picture', exist_ok=True)
 
-    loader = MNISTLoader("./data/minist")
+    loader = CIFARLoader("./data/CIFAR-10")
 
-    tuple_matrices1 = []
-    tuple_matrices2 = []
-    for i in range(5):
-        list_matrices = loader.load_random_images(i)        
-        for matrix in list_matrices:
-            processor = PictureProcessor(matrix)
-            leak_left, restore_left, leak_right, restore_right = processor.process_matrices()
-            tuple_matrices1.append((matrix, restore_left, restore_right))
-    for i in range(5, 10):
-        list_matrices = loader.load_random_images(i)        
-        for matrix in list_matrices:
-            processor = PictureProcessor(matrix)
-            leak_left, restore_left, leak_right, restore_right = processor.process_matrices()
-            tuple_matrices2.append((matrix, restore_left, restore_right))
+    # tuple_matrices = []
+    matrix = loader.load_random_image_as_grayscale(1)
+    processor = PictureProcessor(matrix)
+    leak_left, restore_left, leak_right, restore_right = processor.process_matrices()
+    # tuple_matrices.append((matrix, restore_left, restore_right))
 
     
     painter = MatrixPainter()
     # 绘制矩阵比较图
-    painter.stack_images(tuple_matrices1, tuple_matrices2)
+    painter.minist_painting(matrix, restore_left, restore_right)
+    # painter.stack_images(tuple_matrices1, tuple_matrices2)
 
     # tuple_matrices = []
     # for i in range(10):

@@ -1,3 +1,20 @@
+"""
+文件名称: epinions.py
+
+描述:
+    实现从Epinions数据集中读取灰度图像并转换成矩阵形式存储
+
+
+功能:
+    - get_relations: 读取数据集的信息，根据图的两个顶点填充稀疏矩阵对应位置为1
+
+用法:
+    python epinions.py
+
+作者: chenyuyue
+日期: 2024/4/28
+"""
+
 import numpy as np
 import os
 from scipy.sparse import dok_matrix

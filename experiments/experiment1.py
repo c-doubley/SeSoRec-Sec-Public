@@ -1,3 +1,20 @@
+"""
+文件名称: experiment1.py
+
+描述:
+    这个实验和3做类似的事情，但是因为把整个稀疏矩阵都恢复了，后面两个大数据集没法运行，所以优化都实验3上。
+    保留参考但不使用。
+
+
+功能:
+
+
+用法:
+    python experiment3.py
+
+作者: chenyuyue
+日期: 2024/4/28
+"""
 # exp.py
 import sys
 sys.path.append('../reader')  # 添加TrustGetter类所在目录到模块搜索路径

@@ -1,3 +1,21 @@
+"""
+文件名称: mnist.py
+
+描述:
+    实现从mnist数据集中读取灰度图像并转换成矩阵形式存储
+
+
+功能:
+    - load_random_image: 从指定目录随机加载一个指定标签的图片，并将其转换为矩阵。
+    - load_random_images(self, label, num_images=5):从指定目录随机加载指定数量的指定标签的图片，并将其转换为矩阵。
+
+用法:
+    python mnist.py
+
+作者: chenyuyue
+日期: 2024/4/28
+"""
+
 import numpy as np
 from PIL import Image
 import os
@@ -7,24 +25,24 @@ class MNISTLoader:
     def __init__(self, directory="./data/minist"):
         self.directory = directory
 
-    # def load_random_image(self, label):
-    #     """
-    #     从指定目录随机加载一个指定标签的图片，并将其转换为矩阵。
-    #     """
-    #     # 构建指定标签的图片文件路径列表
-    #     image_files = [f for f in os.listdir(self.directory) if f.endswith('.png') and f.startswith(str(label))]
+    def load_random_image(self, label):
+        """
+        从指定目录随机加载一个指定标签的图片，并将其转换为矩阵。
+        """
+        # 构建指定标签的图片文件路径列表
+        image_files = [f for f in os.listdir(self.directory) if f.endswith('.png') and f.startswith(str(label))]
         
-    #     # 随机选择一个图片文件
-    #     random_image_file = random.choice(image_files)
-    #     image_path = os.path.join(self.directory, random_image_file)
+        # 随机选择一个图片文件
+        random_image_file = random.choice(image_files)
+        image_path = os.path.join(self.directory, random_image_file)
         
-    #     # 使用Pillow库读取图片
-    #     image = Image.open(image_path)
+        # 使用Pillow库读取图片
+        image = Image.open(image_path)
         
-    #     # 将图片转换为灰度模式，然后转换为NumPy矩阵
-    #     image_matrix = np.array(image.convert('L'))
+        # 将图片转换为灰度模式，然后转换为NumPy矩阵
+        image_matrix = np.array(image.convert('L'))
         
-    #     return image_matrix
+        return image_matrix
 
     def load_random_images(self, label, num_images=5):
         """

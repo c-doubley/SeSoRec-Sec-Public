@@ -1,6 +1,28 @@
+"""
+文件名称: experiment3.py
+
+描述:
+    这个文件要完成SeSoRec中关于FilmTrust、Epinions、Douban这三个数据集涉及到的实验。
+    1. 从3个数据集中根据内容将有向图/无向图的边权信息转换为稀疏矩阵
+    2. 生成社交平台的泄露信息，即矩阵的 偶数行-奇数行
+    3. 根据泄露信息重建矩阵
+    4. 把原始矩阵 和 重建矩阵 中非零的数据作比较，看还原出多少非零信息
+
+
+功能:
+    - calculate_similarity_sparse: 输入原始矩阵 和 重建矩阵，比较有多少非零元素是一样的
+    - restore_original_matrix_optimized： 根据泄露信息重建矩阵，只重建了非零的部分（稀疏矩阵太大了否则计算量非常大）
+    - leak_SB: 实现完整流程，先读取数据，然后构造泄露信息，根据泄露信息重建矩阵最后比较相似的数据有多少
+
+用法:
+    python experiment3.py
+
+作者: chenyuyue
+日期: 2024/4/28
+"""
 # exp.py
 import sys
-sys.path.append('../reader')  # 添加TrustGetter类所在目录到模块搜索路径
+sys.path.append("..")
 import numpy as np
 from reader.trust import TrustGetter  # 导入TrustGetter类
 from reader.epinions import EpinionsGetter
@@ -49,11 +71,7 @@ class Exp:
         match_nonzero_count = sum(1 for i, j, v in zip(A_rows, A_cols, A_data) if matrix_B[i, j] == v)
         percentage_nonzero_match = (match_nonzero_count / len(A_data)) * 100 if len(A_data) > 0 else 0
 
-        # 计算A和B所有元素中相等的比例
-        all_match_count = sum(1 for i, j, v in zip(A_rows, A_cols, A_data) if matrix_B[i, j] == v) + sum(1 for i, j, v in zip(B_rows, B_cols, B_data) if matrix_A[i, j] == v and matrix_A[i, j] == 0)
-        percentage_all_match = (all_match_count / total_elements) * 100
-
-        return percentage_A_zero, percentage_nonzero_match, percentage_all_match
+        return percentage_A_zero, percentage_nonzero_match
 
 
 
@@ -135,13 +153,11 @@ class Exp:
         
         leak_matrix = vstack(diff_rows)
         restore_matrix = self.restore_original_matrix_optimized(leak_matrix)
-        similarity,c,d = self.calculate_similarity_sparse(matrix, restore_matrix)
+        similarity,c = self.calculate_similarity_sparse(matrix, restore_matrix)
         print("A中为0的元素个数及其占比： ")
         print(similarity)
         print("A和B非零且相等的元素占比： ")
         print(c)
-        print("A和B所有元素中相等的比例： ")
-        print(d)
         return similarity
         # print("两个矩阵一样的元素有： ")
         # print(simi)
@@ -161,16 +177,16 @@ class Exp:
 
 # 使用示例
 if __name__ == '__main__':
-    # exp_tg = Exp('./data/ft_trust.txt')   
-    # percentage_tg = exp_tg.leak_SB("TrustGetter")
-    # # message = f"ft_trust数据集中泄露了{percentage_tg}%的数据"
-    # # print(message)
+    exp_tg = Exp('../data/ft_trust.txt')   
+    percentage_tg = exp_tg.leak_SB("TrustGetter")
+    # message = f"ft_trust数据集中泄露了{percentage_tg}%的数据"
+    # print(message)
 
-    # exp_eg = Exp('./data/epinions.txt')  
-    # percentage_eg = exp_eg.leak_SB("EpinionsGetter")
-    # # message = f"epinions数据集中泄露了{percentage_eg}%的数据"
-    # # print(message)
+    exp_eg = Exp('../data/epinions.txt')  
+    percentage_eg = exp_eg.leak_SB("EpinionsGetter")
+    # message = f"epinions数据集中泄露了{percentage_eg}%的数据"
+    # print(message)
 
-    exp_dg = Exp('./data/out.douban')   
+    exp_dg = Exp('../data/out.douban')   
     percentage_dg = exp_dg.leak_SB("DoubanGetter")
 

@@ -1,4 +1,22 @@
-# painting.py
+"""
+文件名称: painting.py
+
+描述:
+    这个文件实现全部实验的画图部分。需要传入矩阵然后把他叠加画出来。
+
+
+功能:
+    - paint_comparison: 废弃的。本意是想画社交矩阵的原始和恢复出来图像的对比图，红色的表示一样的位置，但是效果不好，全红了。
+    - minist_painting：绘制一张对比图 需要输入三个矩阵 （原始矩阵,根据奇数列+偶数列重构的矩阵,根据偶数行-奇数行重构的矩阵）
+    - stack_images: 废弃函数，但是可以用来画个横着的演示图片。
+    - mnist_stack_images(self, pics1, pics2):上面函数的升级版，可以做到每五个换一行继续画，传入的是多个三元组（原始矩阵,根据奇数列+偶数列重构的矩阵,根据偶数行-奇数行重构的矩阵）
+
+用法:
+    python painting.py
+
+作者: chenyuyue
+日期: 2024/4/28
+"""
 import numpy as np
 from scipy.sparse import csr_matrix
 import matplotlib.pyplot as plt
@@ -17,9 +35,9 @@ class MatrixPainter:
         """
       
 
-    def paint_comparison(self, matrix_A, matrix_B, row, col, num, file_path='picture/comparison.png'):
+    def paint_comparison(self, matrix_A, matrix_B, row, col, num, file_path='../picture/comparison.png'):
         """
-        绘制两个矩阵的比较图，并将结果保存为PNG文件。
+        选取原始矩阵和重构矩阵的某些行和列来绘制两个矩阵的比较图，并将结果保存为PNG文件。
 
         参数:
         - file_path: 保存图片的路径和文件名 (默认为'picture/comparison.png')
@@ -75,7 +93,7 @@ class MatrixPainter:
         plt.savefig(file_path, bbox_inches='tight')
         plt.close()
     
-
+    # 绘制一张对比图 分别是 原始矩阵 根据奇数列+偶数列重构的矩阵 根据偶数行-奇数行重构的矩阵
     def minist_painting(self, matrix_A, matrix_B, matrix_C):
         # 假设A, B, C为图片对应的numpy矩阵
         # 先将numpy数组转为PIL图片
@@ -102,11 +120,11 @@ class MatrixPainter:
         # 显示并保存图像
         plt.imshow(stacked_imgs, cmap='gray')
         plt.axis('off')
-        plt.savefig('picture/stacked.png')
+        plt.savefig('../picture/mnist_leak_image.png')
         plt.show()
 
 
-
+    # 只能画半张图，废弃函数
     def stack_images(self, pics):
         # 使用函数：
         # pics = [(A1, B1, C1), (A2, B2, C2), ... , (A5, B5, C5)] 假设这样的列表存在
@@ -140,12 +158,12 @@ class MatrixPainter:
         # 显示并保存图像
         plt.imshow(image, cmap='gray')
         plt.axis('off')
-        plt.savefig('picture/final_stacked.png')
+        plt.savefig('../picture/final_stacked.png')
         plt.show()
 
         # return final_stacked_img
 
-    def stack_images(self, pics1, pics2):
+    def mnist_stack_images(self, pics1, pics2):
         # 使用函数：
         # pics = [(A1, B1, C1), (A2, B2, C2), ... , (A5, B5, C5)] 假设这样的列表存在
         # final_img = stack_images(pics)
@@ -205,7 +223,9 @@ class MatrixPainter:
         # 显示并保存图像
         plt.imshow(image, cmap='gray')
         plt.axis('off')
-        plt.savefig('picture/final_stacked.png')
+        # plt.savefig('../picture/final_stacked.png')
+        # 在保存图片时，使用bbox_inches='tight'来自动去掉白边
+        plt.savefig('../picture/mnist_leak_images.png', bbox_inches='tight')
         plt.show()
 
         # return final_stacked_img

@@ -120,7 +120,7 @@ class MatrixPainter:
         # 显示并保存图像
         plt.imshow(stacked_imgs, cmap='gray')
         plt.axis('off')
-        plt.savefig('../picture/mnist_leak_image.png')
+        plt.savefig('picture/mnist_leak_image.png')
         plt.show()
 
 
@@ -158,7 +158,7 @@ class MatrixPainter:
         # 显示并保存图像
         plt.imshow(image, cmap='gray')
         plt.axis('off')
-        plt.savefig('../picture/final_stacked.png')
+        plt.savefig('picture/final_stacked.png')
         plt.show()
 
         # return final_stacked_img
@@ -169,6 +169,10 @@ class MatrixPainter:
         # final_img = stack_images(pics)
 
         
+        # 创建白色间隔
+        def create_white_space(height, width):
+            return Image.fromarray(255 * np.ones((height, width), dtype=np.uint8))
+
         stacked_imgs_list = []
         final_images1 = []
         final_images2 = []
@@ -176,7 +180,7 @@ class MatrixPainter:
         for i, (A, B, C) in enumerate(pics1):
             # 将numpy数组转成PIL图片
             A_img, B_img, C_img = map(Image.fromarray, [A, B, C])
-        
+
             # 水平堆叠A图像和堆叠后的BC图像
             stacked_imgs = np.hstack((A_img, B_img, C_img))
 
@@ -224,8 +228,9 @@ class MatrixPainter:
         plt.imshow(image, cmap='gray')
         plt.axis('off')
         # plt.savefig('../picture/final_stacked.png')
-        # 在保存图片时，使用bbox_inches='tight'来自动去掉白边
-        plt.savefig('../picture/mnist_leak_images.png', bbox_inches='tight')
+        # 在保存图片时，使用bbox_inches='tight'来自动去掉白边 这个是泄露的
+        # plt.savefig('picture/mnist_leak_images.png', bbox_inches='tight')
+        plt.savefig('picture/mnist_no_leak_images.png', bbox_inches='tight')
         plt.show()
 
         # return final_stacked_img

@@ -7,7 +7,7 @@
     2. 从3个数据集中根据内容将有向图/无向图的边权信息转换为稀疏矩阵
     3. 生成需要交互的矩阵信息即 B1 = B + F1, 以及发送 E1 ***
     4. 模拟社交平台的泄露信息，之前是 B_even - B_odd = F1 - (B1_even - B1_odd)
-                             替换成                  （E1_even - E1_odd）- (B1_even - B1_odd) ***
+                             替换成                  （F0_even - F0_odd）- (B1_even - B1_odd) ***
     5. 根据泄露信息重建矩阵 (试一下) 
     6. 把原始矩阵 和 重建矩阵 中非零的数据作比较，看还原出多少非零信息
 
@@ -18,10 +18,10 @@
     - leak_SB: 实现完整流程，先读取数据，然后构造泄露信息，根据泄露信息重建矩阵最后比较相似的数据有多少
 
 用法:
-    python experiment3.py
+    python experiment5.py
 
 作者: chenyuyue
-日期: 2024/4/28
+日期: 2024/7/24
 """
 # exp.py
 import sys
@@ -224,14 +224,14 @@ class Exp:
 
 # 使用示例
 if __name__ == '__main__':
-    # exp_tg = Exp('data/ft_trust.txt')   
-    # percentage_tg = exp_tg.leak_SB("TrustGetter")
+    exp_tg = Exp('data/ft_trust.txt')   
+    percentage_tg = exp_tg.leak_SB("TrustGetter")
     # message = f"ft_trust数据集中泄露了{percentage_tg}%的数据"
     # print(message)
 
     # 这个实验应该是做不了，稀疏矩阵乘法太大了需要超大的内存
-    exp_eg = Exp('data/epinions.txt')  
-    percentage_eg = exp_eg.leak_SB("EpinionsGetter")
+    # exp_eg = Exp('data/epinions.txt')  
+    # percentage_eg = exp_eg.leak_SB("EpinionsGetter")
     # message = f"epinions数据集中泄露了{percentage_eg}%的数据"
     # print(message)
 

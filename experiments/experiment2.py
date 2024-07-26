@@ -19,12 +19,12 @@
 日期: 2024/4/28
 """
 import sys
-sys.path.append("..")
+sys.path.append("/home/cyy/PPSR/ECAI2024")
 import numpy as np
 from PIL import Image
 import os
 import random
-from reader.minist import MNISTLoader
+from reader.mnist import MNISTLoader
 from util.painting import MatrixPainter
 
 class PictureProcessor:
@@ -34,11 +34,11 @@ class PictureProcessor:
     def process_matrices(self):
         # matrix = self._add_column_if_needed(self.matrix)
         # 生成左边参与方的泄露信息 奇数列 + 偶数列
-        leak_left = self._generate_leak_left(matrix)
+        leak_left = self._generate_leak_left(self.matrix)
         # 根据 奇数列 + 偶数列 重建矩阵
         restore_left = self._generate_matrix_C(leak_left)
         # 生成右边参与方的泄露信息 偶数行 - 奇数行
-        leak_right = self._generate_matrix_D(matrix)
+        leak_right = self._generate_matrix_D(self.matrix)
         # 根据 偶数行 - 奇数行 重建矩阵
         restore_right = self._generate_matrix_E(leak_right)
         return leak_left, restore_left, leak_right, restore_right
@@ -108,7 +108,7 @@ if __name__ == "__main__":
     # 确保picture目录存在
     os.makedirs('picture', exist_ok=True)
 
-    loader = MNISTLoader("../data/minist")
+    loader = MNISTLoader("data/minist")
 
     tuple_matrices1 = []
     tuple_matrices2 = []
@@ -135,21 +135,21 @@ if __name__ == "__main__":
 
     # 这里提供一个只画一张图的使用示例
     # 随机加载一张标签的图片并将其转换为矩阵
-    loader = MNISTLoader("../data/minist")
+    loader = MNISTLoader("data/minist")
     matrix = loader.load_random_image(0)
     
     # 确保picture目录存在
     os.makedirs('picture', exist_ok=True)
     # 保存选取的图片到picture目录
-    save_image(matrix, '../picture/mnist_original_image.png')
+    save_image(matrix, 'picture/mnist_original_image.png')
     
     # 处理矩阵并生成矩阵leak_left和C
     processor = PictureProcessor(matrix)
     leak_left, restore_left, leak_right, restore_right = processor.process_matrices()
     
     # 保存矩阵C到picture目录
-    save_image(restore_left, '../picture/mnist_leak_left.png')
-    save_image(restore_right, '../picture/mnist_leak_right.png')
+    save_image(restore_left, 'picture/mnist_leak_left.png')
+    save_image(restore_right, 'picture/mnist_leak_right.png')
 
     painter = MatrixPainter()
     # 绘制矩阵比较图

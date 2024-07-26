@@ -22,7 +22,7 @@ import os
 import random
 
 class MNISTLoader:
-    def __init__(self, directory="./data/minist"):
+    def __init__(self, directory="data/minist"):
         self.directory = directory
 
     def load_random_image(self, label):
@@ -77,12 +77,13 @@ class MNISTLoader:
 
 # 示例使用
 if __name__ == "__main__":
-    loader = MNISTLoader("./data/minist")  # 如果存放MNIST数据的目录不同，请调整路径
+    loader = MNISTLoader("data/minist")  # 如果存放MNIST数据的目录不同，请调整路径
     label = 0  # 指定想要加载的图片的标签
     image_matrix = loader.load_random_image(label)
     
     # 展示加载的图片矩阵的形状，以验证加载成功
     print("Loaded image matrix shape:", image_matrix.shape)
+    print(image_matrix)
     
     # 如果需要，可以使用matplotlib展示图片
     # import matplotlib.pyplot as plt

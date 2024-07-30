@@ -102,6 +102,31 @@ def save_image(matrix, file_path):
     # 保存图像
     image.save(file_path)
 
+
+def add_255_border(matrix):
+    """
+    给一个NumPy矩阵在最后一行和最右边添加两个全为255的行和列
+
+    参数:
+    matrix (numpy.ndarray): 输入的二维灰度图像矩阵
+
+    返回:
+    numpy.ndarray: 添加了255边界后的矩阵
+    """
+    if not isinstance(matrix, np.ndarray):
+        raise ValueError("输入必须是一个NumPy矩阵")
+    
+    # 创建一个全为255的行和列
+    row_255 = np.full((1, matrix.shape[1]), 255, dtype=np.uint8)
+    col_255 = np.full((matrix.shape[0] + 1, 1), 255, dtype=np.uint8)
+
+    # 先添加行，再添加列
+    matrix_with_row = np.vstack([matrix, row_255])
+    matrix_with_row_and_col = np.hstack([matrix_with_row, col_255])
+    
+    return matrix_with_row_and_col
+
+
 # 示例使用
 if __name__ == "__main__":
 
@@ -118,14 +143,16 @@ if __name__ == "__main__":
         for matrix in list_matrices:
             processor = PictureProcessor(matrix)
             leak_left, restore_left, leak_right, restore_right = processor.process_matrices()
-            tuple_matrices1.append((matrix, restore_left, restore_right))
+            # tuple_matrices1.append((matrix, restore_left, restore_right))
+            tuple_matrices1.append((add_255_border(matrix), add_255_border(restore_left), add_255_border(restore_right)))
     # 读取标签5-9的灰度图像转换成矩阵
     for i in range(5, 10):
         list_matrices = loader.load_random_images(i)        
         for matrix in list_matrices:
             processor = PictureProcessor(matrix)
             leak_left, restore_left, leak_right, restore_right = processor.process_matrices()
-            tuple_matrices2.append((matrix, restore_left, restore_right))
+            # tuple_matrices2.append((matrix, restore_left, restore_right))
+            tuple_matrices2.append((add_255_border(matrix), add_255_border(restore_left), add_255_border(restore_right)))
 
     
     painter = MatrixPainter()

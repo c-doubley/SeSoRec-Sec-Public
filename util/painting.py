@@ -229,8 +229,8 @@ class MatrixPainter:
         plt.axis('off')
         # plt.savefig('../picture/final_stacked.png')
         # 在保存图片时，使用bbox_inches='tight'来自动去掉白边 这个是泄露的
-        # plt.savefig('picture/mnist_leak_images.png', bbox_inches='tight')
-        plt.savefig('picture/mnist_no_leak_images.png', bbox_inches='tight')
+        plt.savefig('picture/mnist_leak_images.png', bbox_inches='tight')
+        # plt.savefig('picture/mnist_no_leak_images.png', bbox_inches='tight')
         plt.show()
 
         # return final_stacked_img

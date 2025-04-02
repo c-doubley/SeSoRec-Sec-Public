@@ -10,5 +10,5 @@ class ConfigX:
         self.lr = 0.01
         self.maxIter = 100  # 增加到 500
         self.lambdaP = 0.001
-        self.gamma = 2  # 初始值，可调
+        self.gamma = 1  # 初始值，可调
         self.threshold = 1e-4

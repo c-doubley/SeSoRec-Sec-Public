@@ -1,3 +1,4 @@
+# SoSeRec复现 带隐私保护
 # Social.py
 import sys
 import socket
@@ -47,24 +48,57 @@ def receive_with_length(sock):
         data += part
     return pickle.loads(data)
 
-def ppmm_b(B, sock):
-    d2, d3 = B.shape
-    print(f"PPMM_B input shape: {B.shape}")
-    E_1 = receive_with_length(sock)
-    E_1 = np.array(E_1, dtype=np.float64)
-    F = np.random.rand(d2, d3)
-    F_1 = np.random.rand(d2, d3)
-    F_0 = F - F_1
-    send_with_length(sock, (F_0, F))
-    EF_1 = receive_with_length(sock)
-    EF_1 = np.array(EF_1, dtype=np.float64)
-    A_hat = receive_with_length(sock)
-    A_hat = np.array(A_hat, dtype=np.float64)
-    B_hat = B - F
-    send_with_length(sock, B_hat)
-    C_1 = A_hat @ B_hat + E_1 @ B_hat + A_hat @ F_1 + EF_1
-    send_with_length(sock, C_1)
-    print(f"PPMM_B completed for shape: {B.shape}")
+import numpy as np
+
+def ssmm_b(Q, sock):
+    """
+    平台B的安全矩阵乘法实现
+    Q: 平台B持有的矩阵
+    sock: 与平台A通信的socket
+    """
+    # 确保Q是numpy数组并且是浮点类型
+    Q = np.array(Q, dtype=np.float64)
+    
+    Q = Q.T  # 转置Q以匹配P * Q^T
+    y, z = Q.shape
+    pad_row = y % 2  # 1 if y is odd, 0 if even
+    if pad_row:
+        Q = np.pad(Q, ((0, 1), (0, 0)), 'constant')  # 如果y是奇数，添加一行零
+        y += 1
+    
+    # 步骤1: 生成随机矩阵Q'
+    Q_prime = np.random.rand(y, z)
+    
+    # 步骤3: 提取Q'的偶数行和奇数行
+    Q_e = Q_prime[::2, :]  # 偶数行
+    Q_o = Q_prime[1::2, :]  # 奇数行
+    
+    # 步骤5: 计算Q1和Q2
+    Q1 = Q_prime - Q
+    Q2 = Q_e - Q_o
+    
+    # 接收P1和P2
+    response = receive_with_length(sock)
+    if not isinstance(response, tuple) or len(response) != 2:
+        raise TypeError(f"Expected tuple of length 2, got {type(response)}")
+    P1, P2 = response
+    
+    # 确保P1和P2是numpy数组并且是浮点类型
+    P1 = np.array(P1, dtype=np.float64)
+    P2 = np.array(P2, dtype=np.float64)
+    
+    # 发送Q1和Q2给平台A
+    send_with_length(sock, (Q1, Q2))
+    
+    # 步骤7: 计算N
+    N = P1 @ (2 * Q - Q_prime) - P2 @ (Q2 + Q_e)
+    
+    # 如果之前添加了填充行，现在移除它
+    if pad_row:
+        N = N[:, :-1]
+    
+    # 步骤8: 发送N给平台A
+    send_with_length(sock, N)
 
 class TrustGetter:
     def __init__(self):
@@ -152,6 +186,7 @@ def client():
         max_retries = 5
         retry_count = 0
         connected = False
+        
         while retry_count < max_retries and not connected:
             try:
                 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -161,52 +196,78 @@ def client():
             except ConnectionRefusedError:
                 retry_count += 1
                 print(f"Connection refused, retrying... ({retry_count}/{max_retries})")
-                time.sleep(2)
+                time.sleep(2)  # 等待2秒后重试
+                
         if not connected:
             print(f"Cannot connect to server, skipping fold {k}")
             continue
+            
         with client_socket:
             try:
+                # 主动发送TRAIN请求，启动训练过程
                 print("Sending TRAIN request to server")
                 send_with_length(client_socket, ("TRAIN", None))
+                
                 while True:
                     request = receive_with_length(client_socket)
                     if not request:
                         print("Connection closed by server")
                         break
+                        
                     if isinstance(request, tuple) and len(request) >= 1:
                         command = request[0]
                     else:
                         command = request
+                        
                     if command == "GET_SOCIAL_USERS":
                         print("Sending social users")
                         send_with_length(client_socket, list(social.tg.user.keys()))
-                    elif command == "PPMM_D":
+                        
+                    elif command == "INIT_USER_SIM":
+                        print("Initializing user similarity matrix")
+                        social.init_user_sim(client_socket)
+                        send_with_length(client_socket, "USER_SIM_INITIALIZED")
+                        
+                    elif command == "GET_RATINGS":
+                        user = request[1]
+                        print(f"Received request for ratings of user {user}")
+                        # 这里应该返回用户的评分，但在Social.py中我们没有评分数据
+                        # 所以返回空字典
+                        send_with_length(client_socket, {})
+                        
+                    elif command == "SSMM_D":
                         batch_users = request[1]
-                        print(f"Processing PPMM_D request, batch size: {len(batch_users)}")
+                        print(f"Processing SSMM_D request, batch size: {len(batch_users)}")
                         D_B, _, _ = social.get_social_matrices(batch_users)
-                        ppmm_b(D_B.T, client_socket)  # 修改为 D_B.T
-                    elif command == "PPMM_S":
+                        ssmm_b(D_B, client_socket)
+                        
+                    elif command == "SSMM_S":
                         batch_users = request[1]
-                        print(f"Processing PPMM_S request, batch size: {len(batch_users)}")
+                        print(f"Processing SSMM_S request, batch size: {len(batch_users)}")
                         _, S_B, _ = social.get_social_matrices(batch_users)
-                        ppmm_b(S_B.T, client_socket)  # 修改为 S_B.T
-                    elif command == "PPMM_E":
+                        ssmm_b(S_B, client_socket)
+                        
+                    elif command == "SSMM_E":
                         batch_users = request[1]
-                        print(f"Processing PPMM_E request, batch size: {len(batch_users)}")
+                        print(f"Processing SSMM_E request, batch size: {len(batch_users)}")
                         _, _, E_B = social.get_social_matrices(batch_users)
-                        ppmm_b(E_B.T, client_socket)  # 修改为 E_B.T
+                        ssmm_b(E_B, client_socket)
+                        
                     elif command == "TRAIN_DONE":
                         print(f"Training completed for fold {k}")
                         break
                     else:
                         print(f"Unknown command: {command}")
+                        
             except Exception as e:
                 print(f"Error in client: {e}")
                 import traceback
                 traceback.print_exc()
+                
             print(f"Fold {k} client shutting down")
-        time.sleep(5)
+        
+        # 等待服务器准备好下一个fold
+        time.sleep(5)  # 增加等待时间，确保服务器有足够时间重启
 
 if __name__ == "__main__":
     client()

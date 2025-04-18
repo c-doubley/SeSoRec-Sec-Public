@@ -1,3 +1,19 @@
+"""
+文件名称: Recommender4.py
+
+描述:
+    SeSoRec的安全版本SeSoRec-Sec
+    PPMM替换SSMM
+    使用 TrustFilm 数据集
+    对应Social4.py
+功能:
+
+用法:
+    python Recommender4.py
+
+作者: chenyuyue
+日期: 2025/4/17
+"""
 # 使用了PPMM的SoSeRec ft数据集
 # Recommender.py
 import sys

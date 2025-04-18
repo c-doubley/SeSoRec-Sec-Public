@@ -1,3 +1,19 @@
+"""
+文件名称: Social1.py
+
+描述:
+    SeSoRec的不安全版本，不包含SSMM协议，直接传输需要的矩阵数据
+    对应Recommender1.py
+    和 Social2.py的区别是这个版本还没加入五折交叉验证
+功能:
+
+用法:
+    python Social1.py
+
+作者: chenyuyue
+日期: 2025/4/17
+"""
+
 # Social.py
 # encoding:utf-8
 import sys

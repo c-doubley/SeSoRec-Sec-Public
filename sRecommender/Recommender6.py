@@ -1,3 +1,20 @@
+"""
+文件名称: Recommender6.py
+
+描述:
+    SeSoRec的安全版本SeSoRec-Sec
+    PPMM替换SSMM
+    使用 Epinions 数据集
+    对应Social6.py
+功能:
+
+用法:
+    python Recommender6.py
+
+作者: chenyuyue
+日期: 2025/4/17
+"""
+
 # Recommender.py
 import sys
 import socket
@@ -290,4 +307,7 @@ if __name__ == "__main__":
                         print(f"Fold {k}: RMSE_test = {rmse_test:.4f}, NDCG@10 = {ndcg_test:.4f}")
                         break
         server_socket.close()
-    print(f"Average RMSE: {np.mean(rmse_folds):.4f}, Average NDCG@10: {np.mean(ndcg_folds):.4f}")
+    avg_result = f"Average RMSE: {np.mean(rmse_folds):.4f}, Average NDCG@10: {np.mean(ndcg_folds):.4f}"
+    print(avg_result)
+    with open("result.txt", "a") as result_file:
+        result_file.write(avg_result + "\n")

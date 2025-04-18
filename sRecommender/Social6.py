@@ -1,3 +1,19 @@
+"""
+文件名称: Social6.py
+
+描述:
+    SeSoRec-Sec实现
+    使用PPMM替换SSMM
+    使用Epinion数据集
+功能:
+
+
+用法:
+    python Social6.py
+
+作者: chenyuyue
+日期: 2025/4/17
+"""
 # Social.py
 import sys
 import socket

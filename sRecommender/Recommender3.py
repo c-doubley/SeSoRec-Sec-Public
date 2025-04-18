@@ -1,3 +1,19 @@
+"""
+文件名称: Recommender3.py
+
+描述:
+    SeSoRec的复现版本，包含SSMM协议
+    使用 TrustFilm 数据集
+    对应Social3.py
+功能:
+
+用法:
+    python Recommender3.py
+
+作者: chenyuyue
+日期: 2025/4/17
+"""
+
 # Recommender.py
 import sys
 import socket

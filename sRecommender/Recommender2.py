@@ -1,3 +1,18 @@
+"""
+文件名称: Recommender2.py
+
+描述:
+    SeSoRec的不带隐私保护版本，不包含SSMM协议，直接传输需要的矩阵数据
+    对应Social2.py
+    和 Recommender1.py的区别是这个版本加入五折交叉验证
+功能:
+
+用法:
+    python Recommender2.py
+
+作者: chenyuyue
+日期: 2025/4/17
+"""
 # 不带隐私保护的，能跑的
 # Recommender.py
 import sys

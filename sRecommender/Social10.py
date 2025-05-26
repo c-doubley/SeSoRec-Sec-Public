@@ -163,7 +163,7 @@ def client():
 class TrustGetter:
     def __init__(self):
         self.config = ConfigX()
-        self.config.trust_path = "./data/cv/Epinions/trust.txt"
+        self.config.trust_path = "./data/cv/Epinions/user_rating.txt"
         self.user = {}
         self.followees = defaultdict(dict)
         self.followers = defaultdict(dict)

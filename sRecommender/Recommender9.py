@@ -1,21 +1,20 @@
 """
-文件名称: Recommender7.py
+文件名称: Recommender2.py
 
 描述:
-    SeSoRec的安全版本SeSoRec-Sec
-    PPMM替换SSMM
-    使用 TrustFilm 数据集
-    对应Social4.py
+    SeSoRec的不带隐私保护版本，不包含SSMM协议，直接传输需要的矩阵数据
+    对应Social2.py
+    和 Recommender1.py的区别是这个版本加入五折交叉验证
     加入ILS评估Diversity
 功能:
 
 用法:
-    python Recommender7.py
+    python Recommender2.py
 
 作者: chenyuyue
 日期: 2025/4/17
 """
-# 使用了PPMM的SoSeRec ft数据集
+# 不带隐私保护的，能跑的
 # Recommender.py
 import sys
 import socket
@@ -52,39 +51,10 @@ def receive_with_length(sock):
         data += part
     return pickle.loads(data)
 
-def ppmm_a(A, sock):
-    d1, d2 = A.shape
-    # print(f"PPMM_A input shape: {A.shape}")
-    E = np.random.rand(d1, d2)
-    E_0 = np.random.rand(d1, d2)
-    E_1 = E - E_0
-    send_with_length(sock, E_1)
-    F_0, F = receive_with_length(sock)
-    F_0 = np.array(F_0, dtype=np.float64)
-    F = np.array(F, dtype=np.float64)
-    EF = E @ F
-    EF_0 = np.random.rand(d1, EF.shape[1])
-    EF_1 = EF - EF_0
-    send_with_length(sock, EF_1)
-    A_hat = A - E
-    send_with_length(sock, A_hat)
-    B_hat = receive_with_length(sock)
-    B_hat = np.array(B_hat, dtype=np.float64)
-    C_0 = E_0 @ B_hat + A_hat @ F_0 + EF_0
-    C_1 = receive_with_length(sock)
-    C_1 = np.array(C_1, dtype=np.float64)
-    result = C_0 + C_1
-    # print(f"PPMM_A output shape: {result.shape}")
-    return result
-
 class RatingGetter:
     def __init__(self, k):
         self.config = ConfigX()
-        self.config.rating_cv_path = "./data/cv/TrustFilm/"
-        self.config.dataset_name = "ft"
-        self.config.min_val = 0.5
-        self.config.max_val = 4.0
-        self.config.sep = " "  # 修复分隔符，与TrustFilm数据文件匹配
+        self.config.rating_cv_path = "./data/cv/"
         self.k = k
         self.user = {}
         self.item = {}
@@ -95,6 +65,7 @@ class RatingGetter:
         self._load_data()
 
     def _load_data(self):
+        # 加载训练集
         train_path = f"{self.config.rating_cv_path}{self.config.dataset_name}-{self.k}-train.txt"
         with open(train_path, 'r') as f:
             for line in f:
@@ -108,6 +79,8 @@ class RatingGetter:
                     self.item[i] = len(self.item)
                     self.id2item[self.item[i]] = i
                 self.trainSet_u[u][i] = r
+
+        # 加载测试集
         test_path = f"{self.config.rating_cv_path}{self.config.dataset_name}-{self.k}.txt"
         with open(test_path, 'r') as f:
             for line in f:
@@ -225,10 +198,8 @@ class Recommender:
 
     def train_model(self, sock):
         if self.social_users is None:
-            print("Requesting social users from platform B...")
             send_with_length(sock, ("GET_SOCIAL_USERS", None))
             self.social_users = receive_with_length(sock)
-            print(f"Received social users: {self.social_users[:5]}... (total: {len(self.social_users) if self.social_users else 0})")
             if not self.social_users:
                 raise ValueError("No social users received")
             self.U = np.random.rand(self.config.factor, len(self.social_users)) / (self.config.factor ** 0.5)
@@ -253,22 +224,19 @@ class Recommender:
             U_B = self.U[:, [self.social_user_map[u] for u in batch_users]]
             V_B = self.V[:, [self.rg.item[i] for i in batch_items]]
 
-            # 使用 PPMM 替换 SSMM
-            send_with_length(sock, ("PPMM_D", batch_users))
-            U_B_D_B_T = ppmm_a(U_B, sock)
-
-            send_with_length(sock, ("PPMM_S", batch_users))
-            U_S_B_T = ppmm_a(self.U, sock)
-
-            send_with_length(sock, ("PPMM_E", batch_users))
-            U_B_E_B_T = ppmm_a(U_B, sock)
+            send_with_length(sock, ("GET_SOCIAL_MATRICES", batch_users))
+            response = receive_with_length(sock)
+            if response is None:
+                print("Warning: Received None from platform B")
+                continue
+            D_B, S_B, E_B = response
 
             pred = U_B.T @ V_B
             error = I_B * (R_B - pred)
             loss_basic = 0.5 * np.sum(error ** 2)
-            loss_social = (0.5 * self.config.gamma * np.sum(U_B_D_B_T) -
-                           self.config.gamma * np.sum(U_S_B_T) +
-                           0.5 * self.config.gamma * np.sum(U_B_E_B_T))
+            loss_social = (0.5 * self.config.gamma * np.sum(np.diagonal(D_B) * np.sum(U_B ** 2, axis=0)) -
+                           self.config.gamma * np.sum(S_B * (U_B.T @ self.U)) +
+                           0.5 * self.config.gamma * np.sum(np.diagonal(E_B) * np.sum(U_B ** 2, axis=0)))
             loss_reg = 0.5 * self.config.lambdaP * (np.sum(U_B ** 2) + np.sum(V_B ** 2))
             self.loss = loss_basic + loss_social + loss_reg
 
@@ -291,9 +259,9 @@ class Recommender:
             diversity_test = 1 - ils_test  # 加入 Diversity 计算
 
             term1 = -V_B @ (error * I_B).T
-            term2 = 0.5 * self.config.gamma * U_B_D_B_T
-            term3 = -self.config.gamma * U_S_B_T
-            term4 = 0.5 * self.config.gamma * U_B_E_B_T
+            term2 = 0.5 * self.config.gamma * U_B @ D_B.T
+            term3 = -self.config.gamma * self.U @ S_B.T
+            term4 = 0.5 * self.config.gamma * U_B @ E_B
             term5 = self.config.lambdaP * U_B
 
             grad_U_B = term1 + term2 + term3 + term4 + term5
@@ -326,12 +294,13 @@ if __name__ == "__main__":
     for k in range(5):
         print(f"Running fold {k}")
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server_socket.bind(('localhost', 12345))
+        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) 
+        server_socket.bind(('localhost', 12345 + k))
         server_socket.listen(1)
         print(f"P0 Server started for fold {k}, waiting for P1 connection...")
         conn, addr = server_socket.accept()
         print(f"Connected by {addr}")
+        
         recommender = Recommender(k, batch_size=64)
         with conn:
             while True:
@@ -339,16 +308,11 @@ if __name__ == "__main__":
                 if not request:
                     print("Connection closed by client")
                     break
-                if isinstance(request, tuple) and len(request) >= 1:
-                    command = request[0]
-                else:
-                    command = request
-                if command == "GET_RATINGS":
+                if request[0] == "GET_RATINGS":
                     user = request[1]
                     ratings = recommender.rg.get_row(user)
                     send_with_length(conn, ratings)
-                elif command == "TRAIN":
-                    print("Starting training...")
+                elif request[0] == "TRAIN":
                     rmse_test, ndcg_test, ils_test, diversity_test = recommender.train_model(conn)
                     rmse_folds.append(rmse_test)
                     ndcg_folds.append(ndcg_test)
@@ -358,12 +322,11 @@ if __name__ == "__main__":
                           f"ILS = {ils_test:.4f}, Diversity = {diversity_test:.4f}")
                     break
         server_socket.close()
-        time.sleep(2)
-    
     if rmse_folds:
         avg_result = (f"Average RMSE: {np.mean(rmse_folds):.4f}, Average NDCG@10: {np.mean(ndcg_folds):.4f}, "
                       f"Average ILS: {np.mean(ils_folds):.4f}, Average Diversity: {np.mean(diversity_folds):.4f}")
         print(avg_result)
+        # 将结果保存到文件，与其他版本一致
         with open("result.txt", "a") as result_file:
             result_file.write(avg_result + "\n")
     else:

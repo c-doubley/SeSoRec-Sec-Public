@@ -1,21 +1,19 @@
 """
-文件名称: Recommender7.py
+文件名称: Recommender3.py
 
 描述:
-    SeSoRec的安全版本SeSoRec-Sec
-    PPMM替换SSMM
+    SeSoRec的复现版本，包含SSMM协议
     使用 TrustFilm 数据集
-    对应Social4.py
+    对应Social3.py
     加入ILS评估Diversity
 功能:
 
 用法:
-    python Recommender7.py
+    python Recommender3.py
 
 作者: chenyuyue
 日期: 2025/4/17
 """
-# 使用了PPMM的SoSeRec ft数据集
 # Recommender.py
 import sys
 import socket
@@ -52,39 +50,64 @@ def receive_with_length(sock):
         data += part
     return pickle.loads(data)
 
-def ppmm_a(A, sock):
-    d1, d2 = A.shape
-    # print(f"PPMM_A input shape: {A.shape}")
-    E = np.random.rand(d1, d2)
-    E_0 = np.random.rand(d1, d2)
-    E_1 = E - E_0
-    send_with_length(sock, E_1)
-    F_0, F = receive_with_length(sock)
-    F_0 = np.array(F_0, dtype=np.float64)
-    F = np.array(F, dtype=np.float64)
-    EF = E @ F
-    EF_0 = np.random.rand(d1, EF.shape[1])
-    EF_1 = EF - EF_0
-    send_with_length(sock, EF_1)
-    A_hat = A - E
-    send_with_length(sock, A_hat)
-    B_hat = receive_with_length(sock)
-    B_hat = np.array(B_hat, dtype=np.float64)
-    C_0 = E_0 @ B_hat + A_hat @ F_0 + EF_0
-    C_1 = receive_with_length(sock)
-    C_1 = np.array(C_1, dtype=np.float64)
-    result = C_0 + C_1
-    # print(f"PPMM_A output shape: {result.shape}")
+def ssmm_a(P, sock):
+    """
+    平台A的安全矩阵乘法实现
+    P: 平台A持有的矩阵
+    sock: 与平台B通信的socket
+    返回: M + N = P * Q，其中Q是平台B持有的矩阵
+    """
+    original_shape = P.shape
+    # print(f"SSMM_A input shape: {original_shape}")
+    
+    x, y = P.shape
+    pad_col = y % 2
+    if pad_col:
+        P = np.pad(P, ((0, 0), (0, 1)), 'constant')
+        y += 1
+    
+    P_prime = np.random.rand(x, y)
+    P_e = P_prime[:, ::2]
+    P_o = P_prime[:, 1::2]
+    P1 = P + P_prime
+    P2 = P_e + P_o
+    send_with_length(sock, (P1, P2))
+    
+    response = receive_with_length(sock)
+    if not isinstance(response, tuple) or len(response) != 2:
+        raise TypeError(f"Expected tuple of length 2, got {type(response)}")
+    Q1, Q2 = response
+    
+    Q1 = np.array(Q1, dtype=np.float64)
+    Q2 = np.array(Q2, dtype=np.float64)
+    
+    M = (P + 2 * P_prime) @ Q1 + (P2 + P_o) @ Q2
+    N = receive_with_length(sock)
+    N = np.array(N, dtype=np.float64)
+    
+    if M.shape != N.shape:
+        # print(f"Warning: M shape {M.shape} does not match N shape {N.shape}, trying to adjust...")
+        min_rows = min(M.shape[0], N.shape[0])
+        min_cols = min(M.shape[1], N.shape[1])
+        M = M[:min_rows, :min_cols]
+        N = N[:min_rows, :min_cols]
+    
+    result = M + N
+    
+    if result.shape != original_shape:
+        # print(f"Warning: Result shape {result.shape} does not match original shape {original_shape}, trying to adjust...")
+        if result.shape[1] < original_shape[1]:
+            result = np.pad(result, ((0, 0), (0, original_shape[1] - result.shape[1])), 'constant')
+        elif result.shape[1] > original_shape[1]:
+            result = result[:, :original_shape[1]]
+    
+    # print(f"SSMM_A output shape: {result.shape}")
     return result
 
 class RatingGetter:
     def __init__(self, k):
         self.config = ConfigX()
-        self.config.rating_cv_path = "./data/cv/TrustFilm/"
-        self.config.dataset_name = "ft"
-        self.config.min_val = 0.5
-        self.config.max_val = 4.0
-        self.config.sep = " "  # 修复分隔符，与TrustFilm数据文件匹配
+        self.config.rating_cv_path = "./data/cv/"
         self.k = k
         self.user = {}
         self.item = {}
@@ -108,6 +131,7 @@ class RatingGetter:
                     self.item[i] = len(self.item)
                     self.id2item[self.item[i]] = i
                 self.trainSet_u[u][i] = r
+
         test_path = f"{self.config.rating_cv_path}{self.config.dataset_name}-{self.k}.txt"
         with open(test_path, 'r') as f:
             for line in f:
@@ -229,8 +253,10 @@ class Recommender:
             send_with_length(sock, ("GET_SOCIAL_USERS", None))
             self.social_users = receive_with_length(sock)
             print(f"Received social users: {self.social_users[:5]}... (total: {len(self.social_users) if self.social_users else 0})")
+            
             if not self.social_users:
                 raise ValueError("No social users received")
+                
             self.U = np.random.rand(self.config.factor, len(self.social_users)) / (self.config.factor ** 0.5)
             self.social_user_map = {u: i for i, u in enumerate(self.social_users)}
             print(f"Initialized U shape: {self.U.shape}, factor: {self.config.factor}")
@@ -253,23 +279,32 @@ class Recommender:
             U_B = self.U[:, [self.social_user_map[u] for u in batch_users]]
             V_B = self.V[:, [self.rg.item[i] for i in batch_items]]
 
-            # 使用 PPMM 替换 SSMM
-            send_with_length(sock, ("PPMM_D", batch_users))
-            U_B_D_B_T = ppmm_a(U_B, sock)
+            send_with_length(sock, ("SSMM_D", batch_users))
+            U_B_D_B_T = ssmm_a(U_B, sock)
 
-            send_with_length(sock, ("PPMM_S", batch_users))
-            U_S_B_T = ppmm_a(self.U, sock)
+            send_with_length(sock, ("SSMM_S", batch_users))
+            U_S_B_T = ssmm_a(self.U, sock)
 
-            send_with_length(sock, ("PPMM_E", batch_users))
-            U_B_E_B_T = ppmm_a(U_B, sock)
+            send_with_length(sock, ("SSMM_E", batch_users))
+            U_B_E_B_T = ssmm_a(U_B, sock)
 
-            pred = U_B.T @ V_B
+            min_cols = min(U_B_D_B_T.shape[1], U_S_B_T.shape[1], U_B_E_B_T.shape[1], U_B.shape[1])
+            # print(f"SSMM results shapes: U_B_D_B_T={U_B_D_B_T.shape}, U_S_B_T={U_S_B_T.shape}, U_B_E_B_T={U_B_E_B_T.shape}, U_B={U_B.shape}")
+            
+            U_B_D_B_T = U_B_D_B_T[:, :min_cols]
+            U_S_B_T = U_S_B_T[:, :min_cols]
+            U_B_E_B_T = U_B_E_B_T[:, :min_cols]
+            U_B_adjusted = U_B[:, :min_cols]
+
+            pred = U_B_adjusted.T @ V_B
             error = I_B * (R_B - pred)
             loss_basic = 0.5 * np.sum(error ** 2)
+            
             loss_social = (0.5 * self.config.gamma * np.sum(U_B_D_B_T) -
                            self.config.gamma * np.sum(U_S_B_T) +
                            0.5 * self.config.gamma * np.sum(U_B_E_B_T))
-            loss_reg = 0.5 * self.config.lambdaP * (np.sum(U_B ** 2) + np.sum(V_B ** 2))
+            
+            loss_reg = 0.5 * self.config.lambdaP * (np.sum(U_B_adjusted ** 2) + np.sum(V_B ** 2))
             self.loss = loss_basic + loss_social + loss_reg
 
             n_ratings = np.sum(I_B)
@@ -294,16 +329,30 @@ class Recommender:
             term2 = 0.5 * self.config.gamma * U_B_D_B_T
             term3 = -self.config.gamma * U_S_B_T
             term4 = 0.5 * self.config.gamma * U_B_E_B_T
-            term5 = self.config.lambdaP * U_B
+            term5 = self.config.lambdaP * U_B_adjusted
+
+            shapes = [term.shape for term in [term1, term2, term3, term4, term5]]
+            # print(f"Term shapes before adjustment: {shapes}")
+            
+            min_cols = min(term.shape[1] for term in [term1, term2, term3, term4, term5])
+            
+            term1 = term1[:, :min_cols]
+            term2 = term2[:, :min_cols]
+            term3 = term3[:, :min_cols]
+            term4 = term4[:, :min_cols]
+            term5 = term5[:, :min_cols]
+            
+            # print(f"Term shapes after adjustment: {[term.shape for term in [term1, term2, term3, term4, term5]]}")
 
             grad_U_B = term1 + term2 + term3 + term4 + term5
-            grad_V_B = -U_B @ (error * I_B) + self.config.lambdaP * V_B
+            grad_V_B = -U_B_adjusted @ (error * I_B) + self.config.lambdaP * V_B
 
-            U_B -= self.config.lr * grad_U_B
+            U_B_adjusted -= self.config.lr * grad_U_B
             V_B -= self.config.lr * grad_V_B
 
             for u, idx in u_idx.items():
-                self.U[:, self.social_user_map[u]] = U_B[:, idx]
+                if idx < min_cols:
+                    self.U[:, self.social_user_map[u]] = U_B_adjusted[:, idx]
             for i, idx in v_idx.items():
                 self.V[:, self.rg.item[i]] = V_B[:, idx]
 
@@ -323,47 +372,73 @@ class Recommender:
 
 if __name__ == "__main__":
     rmse_folds, ndcg_folds, ils_folds, diversity_folds = [], [], [], []
+    
     for k in range(5):
         print(f"Running fold {k}")
+        
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server_socket.bind(('localhost', 12345))
-        server_socket.listen(1)
-        print(f"P0 Server started for fold {k}, waiting for P1 connection...")
-        conn, addr = server_socket.accept()
-        print(f"Connected by {addr}")
-        recommender = Recommender(k, batch_size=64)
-        with conn:
-            while True:
-                request = receive_with_length(conn)
-                if not request:
-                    print("Connection closed by client")
-                    break
-                if isinstance(request, tuple) and len(request) >= 1:
-                    command = request[0]
-                else:
-                    command = request
-                if command == "GET_RATINGS":
-                    user = request[1]
-                    ratings = recommender.rg.get_row(user)
-                    send_with_length(conn, ratings)
-                elif command == "TRAIN":
-                    print("Starting training...")
-                    rmse_test, ndcg_test, ils_test, diversity_test = recommender.train_model(conn)
-                    rmse_folds.append(rmse_test)
-                    ndcg_folds.append(ndcg_test)
-                    ils_folds.append(ils_test)
-                    diversity_folds.append(diversity_test)
-                    print(f"Fold {k}: RMSE_test = {rmse_test:.4f}, NDCG@10 = {ndcg_test:.4f}, "
-                          f"ILS = {ils_test:.4f}, Diversity = {diversity_test:.4f}")
-                    break
-        server_socket.close()
-        time.sleep(2)
+        
+        try:
+            server_socket.bind(('localhost', 12345))
+            server_socket.listen(1)
+            print(f"P0 Server started for fold {k}, waiting for P1 connection...")
+            
+            server_socket.settimeout(60)
+            
+            try:
+                conn, addr = server_socket.accept()
+                print(f"Connected by {addr}")
+                
+                recommender = Recommender(k, batch_size=64)
+                
+                with conn:
+                    while True:
+                        request = receive_with_length(conn)
+                        if not request:
+                            print("Connection closed by client")
+                            break
+                            
+                        if isinstance(request, tuple) and len(request) >= 1:
+                            command = request[0]
+                        else:
+                            command = request
+                            
+                        if command == "GET_RATINGS":
+                            user = request[1]
+                            ratings = recommender.rg.get_row(user)
+                            send_with_length(conn, ratings)
+                        elif command == "TRAIN":
+                            print("Starting training...")
+                            rmse_test, ndcg_test, ils_test, diversity_test = recommender.train_model(conn)
+                            rmse_folds.append(rmse_test)
+                            ndcg_folds.append(ndcg_test)
+                            ils_folds.append(ils_test)
+                            diversity_folds.append(diversity_test)
+                            print(f"Fold {k}: RMSE_test = {rmse_test:.4f}, NDCG@10 = {ndcg_test:.4f}, "
+                                  f"ILS = {ils_test:.4f}, Diversity = {diversity_test:.4f}")
+                            break
+                        else:
+                            print(f"Unknown request: {command}")
+                
+            except socket.timeout:
+                print(f"Timeout waiting for connection in fold {k}")
+            
+        except Exception as e:
+            print(f"Error in fold {k}: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        finally:
+            server_socket.close()
+            print(f"Server socket for fold {k} closed")
+            time.sleep(2)
     
     if rmse_folds:
         avg_result = (f"Average RMSE: {np.mean(rmse_folds):.4f}, Average NDCG@10: {np.mean(ndcg_folds):.4f}, "
                       f"Average ILS: {np.mean(ils_folds):.4f}, Average Diversity: {np.mean(diversity_folds):.4f}")
         print(avg_result)
+        # 将结果保存到文件（原代码未保存结果，这里添加保存逻辑，与Recommender7.py一致）
         with open("result.txt", "a") as result_file:
             result_file.write(avg_result + "\n")
     else:

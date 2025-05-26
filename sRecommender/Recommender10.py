@@ -1,21 +1,3 @@
-"""
-文件名称: Recommender6.py
-
-描述:
-    SeSoRec的安全版本SeSoRec-Sec
-    PPMM替换SSMM
-    使用 Epinions 数据集
-    对应Social6.py
-    加入ILS评估Diversity
-功能:
-
-用法:
-    python Recommender6.py
-
-作者: chenyuyue
-日期: 2025/4/17
-"""
-
 # Recommender.py
 import sys
 import socket
@@ -24,13 +6,14 @@ import numpy as np
 from collections import defaultdict
 from configx import ConfigX
 import time
+import scipy.sparse as sp
 
 sys.path.append("..")
 
-def normalize(rating, min_val=0.5, max_val=4.0):
+def normalize(rating, min_val=1.0, max_val=5.0):
     return (rating - min_val) / (max_val - min_val)
 
-def denormalize(rating, min_val=0.5, max_val=4.0):
+def denormalize(rating, min_val=1.0, max_val=5.0):
     return rating * (max_val - min_val) + min_val
 
 def send_with_length(sock, data):
@@ -54,27 +37,24 @@ def receive_with_length(sock):
 
 def ppmm_a(A, sock):
     d1, d2 = A.shape
-    # print(f"PPMM_A input shape: {A.shape}")
     send_with_length(sock, (d1, d2))
     b_dims = receive_with_length(sock)
     if b_dims is None:
         raise ValueError("Failed to receive B dimensions from Social.py")
     d3 = b_dims[1]
-    E = np.random.rand(d1, d2)
-    E_0 = np.random.rand(d1, d2)
+    E = np.random.rand(d1, d2).astype(np.float32)
+    E_0 = np.random.rand(d1, d2).astype(np.float32)
     E_1 = E - E_0
     send_with_length(sock, E_1)
-    # print(f"Sending E_1 shape: {E_1.shape}")
     f_data = receive_with_length(sock)
     if f_data is None:
         raise ValueError("Failed to receive F_0 and F from Social.py")
     F_0, F = f_data
-    F_0, F = np.array(F_0), np.array(F)
-    # print(f"Received F_0 shape: {F_0.shape}, F shape: {F.shape}")
+    F_0, F = np.array(F_0, dtype=np.float32), np.array(F, dtype=np.float32)
     if F.shape[0] != d2:
         raise ValueError(f"F dimension mismatch: expected ({d2}, {d3}), got {F.shape}")
     EF = E @ F
-    EF_0 = np.random.rand(d1, d3)
+    EF_0 = np.random.rand(d1, d3).astype(np.float32)
     EF_1 = EF - EF_0
     send_with_length(sock, EF_1)
     A_hat = A - E
@@ -82,17 +62,15 @@ def ppmm_a(A, sock):
     B_hat = receive_with_length(sock)
     if B_hat is None:
         raise ValueError("Failed to receive B_hat from Social.py")
-    B_hat = np.array(B_hat)
-    # print(f"Received B_hat shape: {B_hat.shape}")
+    B_hat = np.array(B_hat, dtype=np.float32)
     if B_hat.shape[0] != d2 or B_hat.shape[1] != d3:
         raise ValueError(f"B_hat dimension mismatch: expected ({d2}, {d3}), got {B_hat.shape}")
     C_0 = E_0 @ B_hat + A_hat @ F_0 + EF_0
     C_1 = receive_with_length(sock)
     if C_1 is None:
         raise ValueError("Failed to receive C_1 from Social.py")
-    C_1 = np.array(C_1)
+    C_1 = np.array(C_1, dtype=np.float32)
     result = C_0 + C_1
-    # print(f"PPMM_A output shape: {result.shape}")
     return result
 
 class RatingGetter:
@@ -100,7 +78,7 @@ class RatingGetter:
         self.config = ConfigX()
         self.config.rating_cv_path = "./data/cv/Epinions/"
         self.config.dataset_name = "Epinions"
-        self.config.min_val = 1.0  # Epinions 评分范围 1-5
+        self.config.min_val = 1.0  # 
         self.config.max_val = 5.0
         self.config.sep = "\t"
         self.k = k
@@ -156,52 +134,55 @@ class RatingGetter:
 class Recommender:
     def __init__(self, k, batch_size=16):
         self.config = ConfigX()
+        self.config.maxIter = 100  # 设置最大迭代次数为 100
         self.rg = RatingGetter(k)
         self.batch_size = batch_size
         self.social_users = None
         self.U = None
-        self.V = np.random.rand(self.config.factor, len(self.rg.item)) / (self.config.factor ** 0.5)
+        self.V = (np.random.rand(self.config.factor, len(self.rg.item)) / (self.config.factor ** 0.5)).astype(np.float32)
         self.loss = 0.0
         self.prev_loss = 0.0
-        self.item_similarity = self.compute_item_similarity()  # 加入：预计算物品相似度矩阵
+        self.item_user_matrix = self.build_item_user_matrix()
 
-    def compute_item_similarity(self):
+    def build_item_user_matrix(self):
         """
-        计算物品间余弦相似度矩阵
-        返回: n_items x n_items 的相似度矩阵
+        Build a sparse item-user rating matrix.
+        Returns: scipy.sparse.csr_matrix
         """
         n_items = len(self.rg.item)
-        item_users = defaultdict(dict)
+        n_users = len(self.rg.user)
+        rows, cols, data = [], [], []
         for u in self.rg.trainSet_u:
             for i, r in self.rg.trainSet_u[u].items():
-                item_users[i][u] = r
+                rows.append(self.rg.item[i])
+                cols.append(self.rg.user[u])
+                data.append(r)
+        return sp.csr_matrix((data, (rows, cols)), shape=(n_items, n_users), dtype=np.float32)
 
-        similarity = np.zeros((n_items, n_items))
-        for i in range(n_items):
-            for j in range(i + 1, n_items):
-                users_i = set(item_users[i].keys())
-                users_j = set(item_users[j].keys())
-                common_users = users_i.intersection(users_j)
-                if not common_users:
-                    continue
-                dot_product = sum(item_users[i][u] * item_users[j][u] for u in common_users)
-                norm_i = np.sqrt(sum(item_users[i][u] ** 2 for u in common_users))
-                norm_j = np.sqrt(sum(item_users[j][u] ** 2 for u in common_users))
-                if norm_i == 0 or norm_j == 0:
-                    sim = 0.0
-                else:
-                    sim = dot_product / (norm_i * norm_j)
-                sim = max(0, sim)  # 确保相似度在 [0, 1] 范围
-                similarity[i, j] = sim
-                similarity[j, i] = sim
-        return similarity
+    def compute_item_similarity(self, i, j):
+        """
+        Compute cosine similarity between items i and j.
+        """
+        vec_i = self.item_user_matrix[i].toarray().flatten()
+        vec_j = self.item_user_matrix[j].toarray().flatten()
+        common_users = np.logical_and(vec_i != 0, vec_j != 0)
+        if not np.any(common_users):
+            return 0.0
+        vec_i, vec_j = vec_i[common_users], vec_j[common_users]
+        dot_product = np.sum(vec_i * vec_j)
+        norm_i = np.sqrt(np.sum(vec_i ** 2))
+        norm_j = np.sqrt(np.sum(vec_j ** 2))
+        if norm_i == 0 or norm_j == 0:
+            return 0.0
+        sim = dot_product / (norm_i * norm_j)
+        return max(0, sim)
 
     def compute_ils(self, pred_ratings, n=10):
         """
-        计算 Intra-List Similarity (ILS) 作为多样性指标
-        pred_ratings: 预测评分字典
-        n: 推荐列表长度（Top-N）
-        返回: 平均 ILS 值
+        Compute Intra-List Similarity (ILS) as a diversity metric.
+        pred_ratings: predicted ratings dictionary
+        n: length of the recommendation list (Top-N)
+        Returns: average ILS value
         """
         ils_sum = 0.0
         user_count = 0
@@ -215,7 +196,8 @@ class Recommender:
             pairs = 0
             for i in range(len(top_n)):
                 for j in range(i + 1, len(top_n)):
-                    ils += self.item_similarity[top_n[i], top_n[j]]
+                    sim = self.compute_item_similarity(top_n[i], top_n[j])
+                    ils += sim
                     pairs += 1
             if pairs > 0:
                 ils /= pairs
@@ -249,7 +231,7 @@ class Recommender:
             if self.social_users is None or not isinstance(self.social_users, list):
                 raise ValueError("Failed to receive valid social users from platform B")
             print(f"Received social users: {self.social_users[:5]}... (total: {len(self.social_users)})")
-            self.U = np.random.rand(self.config.factor, len(self.social_users)) / (self.config.factor ** 0.5)
+            self.U = (np.random.rand(self.config.factor, len(self.social_users)) / (self.config.factor ** 0.5)).astype(np.float32)
             self.social_user_map = {u: i for i, u in enumerate(self.social_users)}
             print(f"Initialized U shape: {self.U.shape}, factor: {self.config.factor}")
 
@@ -262,8 +244,8 @@ class Recommender:
             u_idx = {u: i for i, u in enumerate(batch_users)}
             v_idx = {i: j for j, i in enumerate(batch_items)}
 
-            R_B = np.zeros((len(batch_users), len(batch_items)))
-            I_B = np.zeros((len(batch_users), len(batch_items)))
+            R_B = np.zeros((len(batch_users), len(batch_items)), dtype=np.float32)
+            I_B = np.zeros((len(batch_users), len(batch_items)), dtype=np.float32)
             for u, i, r in batch:
                 R_B[u_idx[u], v_idx[i]] = r
                 I_B[u_idx[u], v_idx[i]] = 1
@@ -304,8 +286,8 @@ class Recommender:
                 error_sum = sum((pred_ratings[u].get(i, 0) - r) ** 2 for u, i, r in test_ratings)
                 rmse_test = denormalize(np.sqrt(error_sum / len(test_ratings)), self.config.min_val, self.config.max_val)
             ndcg_test = self.compute_ndcg(pred_ratings, true_ratings, n=10)
-            ils_test = self.compute_ils(pred_ratings, n=10)  # 加入 ILS 计算
-            diversity_test = 1 - ils_test  # 加入 Diversity 计算
+            ils_test = self.compute_ils(pred_ratings, n=10)
+            diversity_test = 1 - ils_test
 
             term1 = -V_B @ (error * I_B).T
             term2 = 0.5 * self.config.gamma * U_B_D_B_T
@@ -339,40 +321,36 @@ class Recommender:
         return rmse_test, ndcg_test, ils_test, diversity_test
 
 if __name__ == "__main__":
-    rmse_folds, ndcg_folds, ils_folds, diversity_folds = [], [], [], []
-    for k in range(5):
-        print(f"Running fold {k}")
-        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server_socket.bind(('localhost', 12345))
-        server_socket.listen(1)
-        print(f"P0 Server started for fold {k}, waiting for P1 connection...")
-        conn, addr = server_socket.accept()
-        print(f"Connected by {addr}")
-        recommender = Recommender(k, batch_size=16)
-        with conn:
-            while True:
-                request = receive_with_length(conn)
-                if request is None:
-                    print("Connection closed by client")
+    # 注释掉五折交叉验证，仅运行 fold 0
+    k = 0  # 固定使用 fold 0
+    print(f"Running experiment with fold {k}")
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_socket.bind(('localhost', 12345))
+    server_socket.listen(1)
+    print(f"P0 Server started for fold {k}, waiting for P1 connection...")
+    conn, addr = server_socket.accept()
+    print(f"Connected by {addr}")
+    recommender = Recommender(k, batch_size=16)
+    with conn:
+        while True:
+            request = receive_with_length(conn)
+            if request is None:
+                print("Connection closed by client")
+                break
+            if isinstance(request, tuple) and len(request) >= 1:
+                if request[0] == "GET_RATINGS":
+                    user = request[1]
+                    ratings = recommender.rg.get_row(user)
+                    send_with_length(conn, ratings)
+                elif request[0] == "TRAIN":
+                    rmse_test, ndcg_test, ils_test, diversity_test = recommender.train_model(conn)
+                    print(f"Experiment with fold {k}: RMSE_test = {rmse_test:.4f}, NDCG@10 = {ndcg_test:.4f}, "
+                          f"ILS = {ils_test:.4f}, Diversity = {diversity_test:.4f}")
                     break
-                if isinstance(request, tuple) and len(request) >= 1:
-                    if request[0] == "GET_RATINGS":
-                        user = request[1]
-                        ratings = recommender.rg.get_row(user)
-                        send_with_length(conn, ratings)
-                    elif request[0] == "TRAIN":
-                        rmse_test, ndcg_test, ils_test, diversity_test = recommender.train_model(conn)
-                        rmse_folds.append(rmse_test)
-                        ndcg_folds.append(ndcg_test)
-                        ils_folds.append(ils_test)
-                        diversity_folds.append(diversity_test)
-                        print(f"Fold {k}: RMSE_test = {rmse_test:.4f}, NDCG@10 = {ndcg_test:.4f}, "
-                              f"ILS = {ils_test:.4f}, Diversity = {diversity_test:.4f}")
-                        break
-        server_socket.close()
-    avg_result = (f"Average RMSE: {np.mean(rmse_folds):.4f}, Average NDCG@10: {np.mean(ndcg_folds):.4f}, "
-                  f"Average ILS: {np.mean(ils_folds):.4f}, Average Diversity: {np.mean(diversity_folds):.4f}")
-    print(avg_result)
+    server_socket.close()
+    result = (f"RMSE: {rmse_test:.4f}, NDCG@10: {ndcg_test:.4f}, "
+              f"ILS: {ils_test:.4f}, Diversity: {diversity_test:.4f}")
+    print(result)
     with open("result.txt", "a") as result_file:
-        result_file.write(avg_result + "\n")
+        result_file.write(result + "\n")

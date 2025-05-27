@@ -1,19 +1,20 @@
 """
-File Name: Recommender11.py
+文件名称: Recommender2.py
 
-Description:
-    A reimplementation of SeSoRec with SSMM protocol.
-    Uses the Epinions dataset.
-    Corresponds to Social11.py.
-    Includes ILS evaluation for diversity.
+描述:
+    SeSoRec的不带隐私保护版本，不包含SSMM协议，直接传输需要的矩阵数据
+    对应Social2.py
+    和 Recommender1.py的区别是这个版本加入五折交叉验证
+功能:
+    添加了ILS（Intra-List Similarity）评估作为多样性指标
 
-Usage:
-    python Recommender11.py
+用法:
+    python Recommender2.py
 
-Author: chenyuyue
-Date: 2025/4/17
+作者: chenyuyue
+日期: 2025/4/17
 """
-
+# 不带隐私保护的，能跑的
 # Recommender.py
 import sys
 import socket
@@ -26,10 +27,10 @@ import scipy.sparse as sp
 
 sys.path.append("..")
 
-def normalize(rating, min_val=1.0, max_val=5.0):
+def normalize(rating, min_val=0.5, max_val=4.0):
     return (rating - min_val) / (max_val - min_val)
 
-def denormalize(rating, min_val=1.0, max_val=5.0):
+def denormalize(rating, min_val=0.5, max_val=4.0):
     return rating * (max_val - min_val) + min_val
 
 def send_with_length(sock, data):
@@ -51,51 +52,6 @@ def receive_with_length(sock):
         data += part
     return pickle.loads(data)
 
-def ssmm_a(P, sock):
-    original_shape = P.shape
-    print(f"SSMM_A input shape: {original_shape}")
-    
-    x, y = P.shape
-    pad_col = y % 2
-    if pad_col:
-        P = np.pad(P, ((0, 0), (0, 1)), 'constant')
-        y += 1
-    
-    P_prime = np.random.rand(x, y)
-    P_e = P_prime[:, ::2]
-    P_o = P_prime[:, 1::2]
-    P1 = P + P_prime
-    P2 = P_e + P_o
-    
-    send_with_length(sock, (P1, P2))
-    
-    response = receive_with_length(sock)
-    if not isinstance(response, tuple) or len(response) != 2:
-        raise TypeError(f"Expected tuple of length 2, got {type(response)}")
-    Q1, Q2 = response
-    Q1 = np.array(Q1, dtype=np.float64)
-    Q2 = np.array(Q2, dtype=np.float64)
-    
-    M = (P + 2 * P_prime) @ Q1 + (P2 + P_o) @ Q2
-    N = receive_with_length(sock)
-    N = np.array(N, dtype=np.float64)
-    
-    if M.shape != N.shape:
-        min_rows = min(M.shape[0], N.shape[0])
-        min_cols = min(M.shape[1], N.shape[1])
-        M = M[:min_rows, :min_cols]
-        N = N[:min_rows, :min_cols]
-    
-    result = M + N
-    if result.shape != original_shape:
-        if result.shape[1] < original_shape[1]:
-            result = np.pad(result, ((0, 0), (0, original_shape[1] - result.shape[1])), 'constant')
-        elif result.shape[1] > original_shape[1]:
-            result = result[:, :original_shape[1]]
-    
-    print(f"SSMM_A output shape: {result.shape}")
-    return result
-
 class RatingGetter:
     def __init__(self, k):
         self.config = ConfigX()
@@ -114,6 +70,7 @@ class RatingGetter:
         self._load_data()
 
     def _load_data(self):
+        # 加载训练集
         train_path = f"{self.config.rating_cv_path}{self.config.dataset_name}-{self.k}-train.txt"
         with open(train_path, 'r') as f:
             for line in f:
@@ -128,6 +85,7 @@ class RatingGetter:
                     self.id2item[self.item[i]] = i
                 self.trainSet_u[u][i] = r
 
+        # 加载测试集
         test_path = f"{self.config.rating_cv_path}{self.config.dataset_name}-{self.k}.txt"
         with open(test_path, 'r') as f:
             for line in f:
@@ -233,8 +191,8 @@ class Recommender:
         user_count = 0
         for u in true_ratings:
             pred_u = [(i, pred_ratings[u].get(i, 0)) for i in range(len(self.rg.item))]
-            true_u = {i: denormalize(r, self.config.min_val, self.config.max_val) for i, r in true_ratings[u].items()}
-            pred_u.sort(key=lambda x: x[1], reverse=True)
+            true_u = true_ratings[u]
+            pred_u.sort(key=lambda x: x[1], reverse=True)  # 按预测分数排序
             top_n_pred = [i for i, _ in pred_u[:n]]
             dcg = 0.0
             for i, item in enumerate(top_n_pred):
@@ -248,14 +206,10 @@ class Recommender:
 
     def train_model(self, sock):
         if self.social_users is None:
-            print("Requesting social users from platform B...")
             send_with_length(sock, ("GET_SOCIAL_USERS", None))
             self.social_users = receive_with_length(sock)
-            print(f"Received social users: {self.social_users[:5]}... (total: {len(self.social_users) if self.social_users else 0})")
-            
             if not self.social_users:
                 raise ValueError("No social users received")
-                
             self.U = np.random.rand(self.config.factor, len(self.social_users)) / (self.config.factor ** 0.5)
             self.social_user_map = {u: i for i, u in enumerate(self.social_users)}
             print(f"Initialized U shape: {self.U.shape}, factor: {self.config.factor}")
@@ -278,30 +232,20 @@ class Recommender:
             U_B = self.U[:, [self.social_user_map[u] for u in batch_users]]
             V_B = self.V[:, [self.rg.item[i] for i in batch_items]]
 
-            send_with_length(sock, ("SSMM_D", batch_users))
-            U_B_D_B_T = ssmm_a(U_B, sock)
+            send_with_length(sock, ("GET_SOCIAL_MATRICES", batch_users))
+            response = receive_with_length(sock)
+            if response is None:
+                print("Warning: Received None from platform B")
+                continue
+            D_B, S_B, E_B = response
 
-            send_with_length(sock, ("SSMM_S", batch_users))
-            U_S_B_T = ssmm_a(self.U[:, [self.social_user_map[u] for u in batch_users]], sock)
-
-            send_with_length(sock, ("SSMM_E", batch_users))
-            U_B_E_B_T = ssmm_a(U_B, sock)
-
-            min_cols = min(U_B_D_B_T.shape[1], U_S_B_T.shape[1], U_B_E_B_T.shape[1], U_B.shape[1])
-            print(f"SSMM results shapes: U_B_D_B_T={U_B_D_B_T.shape}, U_S_B_T={U_S_B_T.shape}, U_B_E_B_T={U_B_E_B_T.shape}, U_B={U_B.shape}")
-            
-            U_B_D_B_T = U_B_D_B_T[:, :min_cols]
-            U_S_B_T = U_S_B_T[:, :min_cols]
-            U_B_E_B_T = U_B_E_B_T[:, :min_cols]
-            U_B_adjusted = U_B[:, :min_cols]
-
-            pred = U_B_adjusted.T @ V_B
+            pred = U_B.T @ V_B
             error = I_B * (R_B - pred)
             loss_basic = 0.5 * np.sum(error ** 2)
-            loss_social = (0.5 * self.config.gamma * np.sum(U_B_D_B_T) -
-                           self.config.gamma * np.sum(U_S_B_T) +
-                           0.5 * self.config.gamma * np.sum(U_B_E_B_T))
-            loss_reg = 0.5 * self.config.lambdaP * (np.sum(U_B_adjusted ** 2) + np.sum(V_B ** 2))
+            loss_social = (0.5 * self.config.gamma * np.sum(np.diagonal(D_B) * np.sum(U_B ** 2, axis=0)) -
+                           self.config.gamma * np.sum(S_B * (U_B.T @ self.U)) +
+                           0.5 * self.config.gamma * np.sum(np.diagonal(E_B) * np.sum(U_B ** 2, axis=0)))
+            loss_reg = 0.5 * self.config.lambdaP * (np.sum(U_B ** 2) + np.sum(V_B ** 2))
             self.loss = loss_basic + loss_social + loss_reg
 
             n_ratings = np.sum(I_B)
@@ -323,35 +267,26 @@ class Recommender:
             diversity_test = 1 - ils_test
 
             term1 = -V_B @ (error * I_B).T
-            term2 = 0.5 * self.config.gamma * U_B_D_B_T
-            term3 = -self.config.gamma * U_S_B_T
-            term4 = 0.5 * self.config.gamma * U_B_E_B_T
-            term5 = self.config.lambdaP * U_B_adjusted
-
-            min_cols = min(term.shape[1] for term in [term1, term2, term3, term4, term5])
-            term1 = term1[:, :min_cols]
-            term2 = term2[:, :min_cols]
-            term3 = term3[:, :min_cols]
-            term4 = term4[:, :min_cols]
-            term5 = term5[:, :min_cols]
+            term2 = 0.5 * self.config.gamma * U_B @ D_B.T
+            term3 = -self.config.gamma * self.U @ S_B.T
+            term4 = 0.5 * self.config.gamma * U_B @ E_B
+            term5 = self.config.lambdaP * U_B
 
             grad_U_B = term1 + term2 + term3 + term4 + term5
-            grad_V_B = -U_B_adjusted @ (error * I_B) + self.config.lambdaP * V_B
+            grad_V_B = -U_B @ (error * I_B) + self.config.lambdaP * V_B
 
-            U_B_adjusted -= self.config.lr * grad_U_B
+            U_B -= self.config.lr * grad_U_B
             V_B -= self.config.lr * grad_V_B
 
             for u, idx in u_idx.items():
-                if idx < min_cols:
-                    self.U[:, self.social_user_map[u]] = U_B_adjusted[:, idx]
+                self.U[:, self.social_user_map[u]] = U_B[:, idx]
             for i, idx in v_idx.items():
                 self.V[:, self.rg.item[i]] = V_B[:, idx]
 
             iteration += 1
             print(f"Iteration {iteration}: Loss = {self.loss:.4f}, RMSE_train = {rmse_train:.4f}, "
                   f"RMSE_test = {rmse_test:.4f}, NDCG@10 = {ndcg_test:.4f}, "
-                  f"ILS = {ils_test:.4f}, Diversity = {diversity_test:.4f}, "
-                  f"Time = {time.time() - start_time:.2f}s")
+                  f"ILS = {ils_test:.4f}, Diversity = {diversity_test:.4f}, Time = {time.time() - start_time:.2f}s")
             if iteration > 1 and abs(self.loss - self.prev_loss) < self.config.threshold:
                 print("Converged: Loss change below threshold")
                 break
@@ -362,8 +297,7 @@ class Recommender:
         return rmse_test, ndcg_test, ils_test, diversity_test
 
 if __name__ == "__main__":
-    # Run only one fold (fold 0)
-    k = 0
+    k = 0  # 只运行单折（fold 0）
     print(f"Running experiment with fold {k}")
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -372,6 +306,7 @@ if __name__ == "__main__":
     print(f"P0 Server started for fold {k}, waiting for P1 connection...")
     conn, addr = server_socket.accept()
     print(f"Connected by {addr}")
+    
     recommender = Recommender(k, batch_size=64)
     with conn:
         while True:
@@ -379,15 +314,11 @@ if __name__ == "__main__":
             if not request:
                 print("Connection closed by client")
                 break
-            if isinstance(request, tuple) and len(request) >= 1:
-                command = request[0]
-            else:
-                command = request
-            if command == "GET_RATINGS":
+            if request[0] == "GET_RATINGS":
                 user = request[1]
                 ratings = recommender.rg.get_row(user)
                 send_with_length(conn, ratings)
-            elif command == "TRAIN":
+            elif request[0] == "TRAIN":
                 print("Starting training...")
                 rmse_test, ndcg_test, ils_test, diversity_test = recommender.train_model(conn)
                 print(f"Experiment with fold {k}: RMSE_test = {rmse_test:.4f}, NDCG@10 = {ndcg_test:.4f}, "

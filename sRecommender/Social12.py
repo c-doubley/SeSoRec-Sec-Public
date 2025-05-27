@@ -1,18 +1,19 @@
 """
-File Name: Social5.py
+文件名称: Social2.py
 
-Description:
-    A reimplementation of SeSoRec with SSMM protocol.
-    Uses the Epinions dataset.
-    Corresponds to Recommender5.py.
+描述:
+    SeSoRec的不带隐私保护版本，不包含SSMM协议，直接传输需要的矩阵数据
+    对应Recommender2.py
+    和 Social1.py的区别是这个版本还没加入五折交叉验证
+功能:
 
-Usage:
-    python Social5.py
+用法:
+    python Social2.py
 
-Author: chenyuyue
-Date: 2025/4/17
+作者: chenyuyue
+日期: 2025/4/17
 """
-
+# 不带隐私保护的
 # Social.py
 import sys
 import socket
@@ -62,47 +63,6 @@ def receive_with_length(sock):
         data += part
     return pickle.loads(data)
 
-def ssmm_b(Q, sock):
-    Q = np.array(Q, dtype=np.float64)
-    Q = Q.T
-    y, z = Q.shape
-    pad_row = y % 2
-    if pad_row:
-        Q = np.pad(Q, ((0, 1), (0, 0)), 'constant')
-        y += 1
-    
-    Q_prime = np.random.rand(y, z)
-    Q_e = Q_prime[::2, :]
-    Q_o = Q_prime[1::2, :]
-    Q1 = Q_prime - Q
-    Q2 = Q_e - Q_o
-    
-    response = receive_with_length(sock)
-    if not isinstance(response, tuple) or len(response) != 2:
-        raise TypeError(f"Expected tuple of length 2, got {type(response)}")
-    P1, P2 = response
-    P1 = np.array(P1, dtype=np.float64)
-    P2 = np.array(P2, dtype=np.float64)
-    
-    # Adjust Q1 and Q2 to match P1 and P2 dimensions
-    if Q1.shape[0] != P1.shape[1]:
-        Q1 = Q1[:P1.shape[1], :]
-    if Q2.shape[0] != P2.shape[1]:
-        Q2 = Q2[:P2.shape[1], :]
-    
-    # Adjust Q_prime and Q_e to match Q's dimensions after padding
-    Q_prime_adjusted = Q_prime[:P1.shape[1], :]
-    Q_adjusted = Q[:P1.shape[1], :]
-    Q_e_adjusted = Q_e[:P2.shape[1], :]
-    
-    send_with_length(sock, (Q1, Q2))
-    term1 = P1 @ (2 * Q_adjusted - Q_prime_adjusted)
-    term2 = P2 @ (Q2 + Q_e_adjusted)
-    N = term1 - term2
-    if pad_row:
-        N = N[:, :-1]
-    send_with_length(sock, N)
-
 class TrustGetter:
     def __init__(self):
         self.config = ConfigX()
@@ -139,123 +99,112 @@ class Social:
         self.config = ConfigX()
         self.tg = TrustGetter()
         self.user_sim = {}
+        # 初始化社交相似度矩阵，而不是直接使用社交关系
         self.S = np.zeros((len(self.tg.user), len(self.tg.user)))
+        # 用户ID到索引的映射
         self.user_idx_map = {u: idx for u, idx in self.tg.user.items()}
         self.idx_user_map = {idx: u for u, idx in self.tg.user.items()}
 
     def init_user_sim(self, sock):
         print("Constructing user-user similarity matrix...")
+        # 获取所有用户的评分数据
         all_ratings = {}
         for u in self.tg.user:
             print(f"Requesting ratings for user {u}")
             send_with_length(sock, ("GET_RATINGS", u))
             u_ratings = receive_with_length(sock)
             all_ratings[u] = u_ratings
+            
+        # 计算用户相似度并填充S矩阵
         for u in self.tg.user:
             u_idx = self.tg.user[u]
+            # 对于每个用户，计算与其有社交关系的用户的相似度
             for f in self.tg.get_followees(u):
                 f_idx = self.tg.user[f]
+                # 使用皮尔逊相关系数计算相似度
                 sim = (pearson_sp(all_ratings.get(u, {}), all_ratings.get(f, {})) + 1.0) / 2.0
+                # 将相似度存储在S矩阵中
                 self.S[u_idx, f_idx] = sim
+                # 同时存储在user_sim字典中，方便查询
                 self.user_sim[f"{u}-{f}"] = sim
+                
         print("User similarity matrix constructed")
 
     def get_social_matrices(self, batch_users):
+        """
+        为批次用户生成社交矩阵
+        D_B: 对角矩阵，表示用户的出度
+        S_B: 社交相似度矩阵
+        E_B: 对角矩阵，表示用户的入度
+        """
         n_users = len(self.tg.user)
+        # 过滤掉不在社交网络中的用户
         valid_batch_users = [u for u in batch_users if u in self.tg.user]
+        
         if not valid_batch_users:
             return np.zeros((1, 1)), np.zeros((1, n_users)), np.zeros((1, 1))
+            
         n_batch_users = len(valid_batch_users)
+        # 批次内用户ID到索引的映射
         batch_idx_map = {u: i for i, u in enumerate(valid_batch_users)}
+        
+        # 初始化矩阵
         D_B = np.zeros((n_batch_users, n_batch_users))
         S_B = np.zeros((n_batch_users, n_users))
         E_B = np.zeros((n_batch_users, n_batch_users))
+        
+        # 计算D_B和S_B
         for b_idx, b in enumerate(valid_batch_users):
             b_global_idx = self.tg.user[b]
+            
+            # 计算用户b的出度（D_B对角元素）
+            # 使用全局索引从S矩阵中获取数据
             d_b = np.sum(self.S[b_global_idx, :])
             D_B[b_idx, b_idx] = d_b
+            
+            # 填充S_B矩阵
             for f_global_idx in range(n_users):
                 S_B[b_idx, f_global_idx] = self.S[b_global_idx, f_global_idx]
+        
+        # 计算E_B
         for b_idx, b in enumerate(valid_batch_users):
             b_global_idx = self.tg.user[b]
+            
+            # 计算用户b的入度（E_B对角元素）
             e_b = np.sum(self.S[:, b_global_idx])
             E_B[b_idx, b_idx] = e_b
+            
         return D_B, S_B, E_B
 
 def client():
     social = Social()
     for k in range(5):
         print(f"Starting fold {k}")
-        max_retries = 5
-        retry_count = 0
-        connected = False
-        
-        while retry_count < max_retries and not connected:
-            try:
-                client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                client_socket.connect(('localhost', 12345))
-                connected = True
-                print(f"Successfully connected to server")
-            except ConnectionRefusedError:
-                retry_count += 1
-                print(f"Connection refused, retrying... ({retry_count}/{max_retries})")
-                time.sleep(2)
-                
-        if not connected:
-            print(f"Cannot connect to server, skipping fold {k}")
-            continue
-            
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_socket.connect(('localhost', 12345 + k))
         with client_socket:
-            try:
-                print("Sending TRAIN request to server")
-                send_with_length(client_socket, ("TRAIN", None))
-                
-                while True:
-                    request = receive_with_length(client_socket)
-                    if not request:
-                        print("Connection closed by server")
-                        break
-                        
-                    if isinstance(request, tuple) and len(request) >= 1:
-                        command = request[0]
-                    else:
-                        command = request
-                        
-                    if command == "GET_SOCIAL_USERS":
-                        print("Sending social users")
-                        send_with_length(client_socket, list(social.tg.user.keys()))
-                    elif command == "GET_RATINGS":
-                        user = request[1]
-                        print(f"Received request for ratings of user {user}")
-                        send_with_length(client_socket, {})
-                    elif command == "SSMM_D":
-                        batch_users = request[1]
-                        print(f"Processing SSMM_D request, batch size: {len(batch_users)}")
-                        D_B, _, _ = social.get_social_matrices(batch_users)
-                        ssmm_b(D_B, client_socket)
-                    elif command == "SSMM_S":
-                        batch_users = request[1]
-                        print(f"Processing SSMM_S request, batch size: {len(batch_users)}")
-                        _, S_B, _ = social.get_social_matrices(batch_users)
-                        ssmm_b(S_B, client_socket)
-                    elif command == "SSMM_E":
-                        batch_users = request[1]
-                        print(f"Processing SSMM_E request, batch size: {len(batch_users)}")
-                        _, _, E_B = social.get_social_matrices(batch_users)
-                        ssmm_b(E_B, client_socket)
-                    elif command == "TRAIN_DONE":
-                        print(f"Training completed for fold {k}")
-                        break
-                    else:
-                        print(f"Unknown command: {command}")
-                        
-            except Exception as e:
-                print(f"Error in client: {e}")
-                import traceback
-                traceback.print_exc()
-                
+            social.init_user_sim(client_socket)
+            send_with_length(client_socket, ("TRAIN", None))
+            iteration_count = 0
+            while True:
+                request = receive_with_length(client_socket)
+                if not request:
+                    print("Connection closed by server")
+                    break
+                if request[0] == "GET_SOCIAL_USERS":
+                    print("Sending social users")
+                    send_with_length(client_socket, list(social.tg.user.keys()))
+                elif request[0] == "GET_SOCIAL_MATRICES":
+                    iteration_count += 1
+                    batch_users = request[1]
+                    print(f"Processing GET_SOCIAL_MATRICES request {iteration_count}, batch size: {len(batch_users)}")
+                    D_B, S_B, E_B = social.get_social_matrices(batch_users)
+                    send_with_length(client_socket, (D_B, S_B, E_B))
+                elif request == "TRAIN_DONE":
+                    print(f"Training completed for fold {k}")
+                    break
             print(f"Fold {k} client shutting down")
-        time.sleep(5)
+        time.sleep(1)  # 短暂等待，确保服务器准备好下一个折
 
 if __name__ == "__main__":
     client()

@@ -72,7 +72,7 @@ SeSoRec-Sec/
 ## Installation
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/username/SeSoRec-Sec.git
+   git clone 
    cd SeSoRec-Sec
    ```
 

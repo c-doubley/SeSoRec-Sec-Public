@@ -1,16 +1,18 @@
 """
-File Name: Social2.py
+File Name: soreg_ep_ILS_S.py
 
 Description:
     Non-privacy-preserving version of SeSoRec, excluding the SSMM protocol, directly transmitting required matrix data
-    Corresponds to Recommender2.py
+    Corresponds to soreg_ep_ILS_R.py
     Differs from Social1.py in that this version does not yet include five-fold cross-validation
 Functionality:
 
 Usage:
-    python Social2.py
+    cd recommended_quality_experiments
+    python soreg_ep_ILS_R.py
+    python soreg_ep_ILS_S.py
 
-Author: chenyuyue
+Author:  
 Date: 2025/4/17
 """
 # Non-privacy-preserving

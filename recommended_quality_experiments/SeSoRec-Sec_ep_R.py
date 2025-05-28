@@ -1,18 +1,21 @@
 """
-文件名称: Recommender6.py
+File name: SeSoRec-Sec_ep_R.py
 
-描述:
-    SeSoRec的安全版本SeSoRec-Sec
-    PPMM替换SSMM
-    使用 Epinions 数据集
-    对应Social6.py
-功能:
+Description:
+    SeSoRec's secure version SeSoRec-Sec
+    PPMM replaces SSMM
+    Use Epinions dataset
+    Corresponding to SeSoRec-Sec_ep_S.py
+    
+Function:
 
-用法:
-    python Recommender6.py
+Usage:
+    cd recommended_quality_experiments
+    python SeSoRec-Sec_ep_R.py
+    python SeSoRec-Sec_ep_S.py
 
-作者: chenyuyue
-日期: 2025/4/17
+Author:  
+Date: 2025/4/17
 """
 
 # Recommender.py

@@ -1,3 +1,22 @@
+"""
+File name: SeSoRec-Sec_ep_ILS_R.py
+
+Description:
+    SeSoRec's secure version SeSoRec-Sec
+    PPMM replaces SSMM
+    Use Epinions dataset
+    Corresponding to SeSoRec-Sec_ep_ILS_S.py
+    Includes ILS evaluation for diversity.
+Function:
+
+Usage:
+    cd recommended_quality_experiments
+    python SeSoRec-Sec_ep_ILS_R.py
+    python SeSoRec-Sec_ep_ILS_S.py
+
+Author:  
+Date: 2025/4/17
+"""
 # Recommender.py
 import sys
 import socket

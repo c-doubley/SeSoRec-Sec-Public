@@ -1,16 +1,18 @@
 """
-File Name: Social3.py
+File Name: SeSoRec_tf_S.py
 
 Description:
     Reproduction version of SeSoRec, including the SSMM protocol
     Uses the TrustFilm dataset
-    Corresponds to Recommender3.py
+    Corresponds to SeSoRec_tf_R.py
 Functionality:
 
 Usage:
-    python Social3.py
+    cd recommended_quality_experiments
+    python SeSoRec_tf_R.py
+    python SeSoRec_tf_S.py
 
-Author: chenyuyue
+Author:  
 Date: 2025/4/17
 """
 # SoSeRec Reproduction with Privacy Protection

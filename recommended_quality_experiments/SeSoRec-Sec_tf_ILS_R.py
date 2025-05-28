@@ -1,21 +1,23 @@
 """
-文件名称: Recommender7.py
+File name: SeSoRec-Sec_tf_ILS_R.py
 
-描述:
-    SeSoRec的安全版本SeSoRec-Sec
-    PPMM替换SSMM
-    使用 TrustFilm 数据集
-    对应Social4.py
-    加入ILS评估Diversity
-功能:
+Description:
+    SeSoRec's secure version SeSoRec-Sec
+    PPMM replaces SSMM
+    Use TrustFilm dataset
+    Corresponding to SeSoRec-Sec_tf_ILS_S.py
+    Includes ILS evaluation for diversity.
+Function:
 
-用法:
-    python Recommender7.py
+Usage:
+    cd recommended_quality_experiments
+    python SeSoRec-Sec_tf_ILS_R.py
+    python SeSoRec-Sec_tf_ILS_S.py
 
-作者: chenyuyue
-日期: 2025/4/17
+Author:  
+Date: 2025/4/17
 """
-# 使用了PPMM的SoSeRec ft数据集
+
 # Recommender.py
 import sys
 import socket

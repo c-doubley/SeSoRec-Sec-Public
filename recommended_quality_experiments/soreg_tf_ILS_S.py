@@ -1,16 +1,24 @@
 """
-File Name: Social2.py
+File name: soreg_tf_ILS_S.py
 
 Description:
-    Non-privacy-preserving version of SeSoRec, excluding the SSMM protocol, directly transmitting required matrix data
-    Corresponds to Recommender2.py
-    Differs from Social1.py in that this version does not yet include five-fold cross-validation
-Functionality:
+    A non-privacy version of SeSoRec, which does not include the SSMM protocol and directly transmits the required matrix data
+    TrustFilm dataset
+    Corresponding to soreg_tf_ILS_R.py
+    Includes ILS evaluation for diversity.
+
+Function:
+
+    Added ILS (Intra-List Similarity) evaluation as a diversity indicator
 
 Usage:
-    python Social2.py
 
-Author: chenyuyue
+    cd recommended_quality_experiments
+    python soreg_tf_ILS_R.py
+    python soreg_tf_ILS_S.py
+
+Author:  
+
 Date: 2025/4/17
 """
 # Non-privacy-preserving
@@ -66,7 +74,7 @@ def receive_with_length(sock):
 class TrustGetter:
     def __init__(self):
         self.config = ConfigX()
-        self.config.trust_path = "./data/ft_trust.txt"
+        self.config.trust_path = "./data/TrustFilm/ft_trust.txt"
         self.user = {}
         self.followees = defaultdict(dict)
         self.followers = defaultdict(dict)

@@ -1,20 +1,23 @@
 """
-文件名称: Social4.py
+File name: SeSoRec-Sec_tf_S.py
 
-描述:
-    SeSoRec的安全版本SeSoRec-Sec
-    PPMM替换SSMM
-    使用 TrustFilm 数据集
-    对应Recommender4.py
-功能:
+Description:
+    SeSoRec's secure version SeSoRec-Sec
+    PPMM replaces SSMM
+    Use TrustFilm dataset
+    Corresponding to SeSoRec-Sec_tf_R.py
 
-用法:
-    python Social4.py
+Function:
 
-作者: chenyuyue
-日期: 2025/4/17
+Usage:
+    cd recommended_quality_experiments
+    python SeSoRec-Sec_tf_R.py
+    python SeSoRec-Sec_tf_S.py
+
+Author:  
+Date: 2025/4/17
 """
-#使用了PPMM的SoSeRec ft数据集
+
 # Social.py
 import sys
 import socket

@@ -1,20 +1,27 @@
 """
-文件名称: Recommender2.py
+File name: soreg_tf_ILS_R.py
 
-描述:
-    SeSoRec的不带隐私保护版本，不包含SSMM协议，直接传输需要的矩阵数据
-    对应Social2.py
-    和 Recommender1.py的区别是这个版本加入五折交叉验证
-    加入ILS评估Diversity
-功能:
+Description:
+    A non-privacy version of SeSoRec, which does not include the SSMM protocol and directly transmits the required matrix data
+     Epinions dataset
+    Corresponding to soreg_tf_ILS_S.py
+    Includes ILS evaluation for diversity.
 
-用法:
-    python Recommender2.py
+Function:
 
-作者: chenyuyue
-日期: 2025/4/17
+    Added ILS (Intra-List Similarity) evaluation as a diversity indicator
+
+Usage:
+
+    cd recommended_quality_experiments
+    python soreg_tf_ILS_R.py
+    python soreg_tf_ILS_S.py
+
+Author:  
+
+Date: 2025/4/17
 """
-# 不带隐私保护的，能跑的
+
 # Recommender.py
 import sys
 import socket
@@ -54,7 +61,7 @@ def receive_with_length(sock):
 class RatingGetter:
     def __init__(self, k):
         self.config = ConfigX()
-        self.config.rating_cv_path = "./data/cv/TrustFilm"
+        self.config.rating_cv_path = "./data/cv/TrustFilm/"
         self.k = k
         self.user = {}
         self.item = {}
@@ -146,7 +153,7 @@ class Recommender:
                     sim = 0.0
                 else:
                     sim = dot_product / (norm_i * norm_j)
-                sim = max(0, sim)  # 确保相似度在 [0, 1] 范围
+                sim = max(0, sim)  
                 similarity[i, j] = sim
                 similarity[j, i] = sim
         return similarity

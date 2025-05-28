@@ -1,20 +1,23 @@
 """
-文件名称: Recommender4.py
+File name: SeSoRec-Sec_tf_R.py
 
-描述:
-    SeSoRec的安全版本SeSoRec-Sec
-    PPMM替换SSMM
-    使用 TrustFilm 数据集
-    对应Social4.py
-功能:
+Description:
+    SeSoRec's secure version SeSoRec-Sec
+    PPMM replaces SSMM
+    Use TrustFilm dataset
+    Corresponding to SeSoRec-Sec_tf_S.py
 
-用法:
-    python Recommender4.py
+Function:
 
-作者: chenyuyue
-日期: 2025/4/17
+Usage:
+    cd recommended_quality_experiments
+    python SeSoRec-Sec_tf_R.py
+    python SeSoRec-Sec_tf_S.py
+
+Author:  
+Date: 2025/4/17
 """
-# 使用了PPMM的SoSeRec ft数据集
+
 # Recommender.py
 import sys
 import socket
@@ -79,7 +82,7 @@ def ppmm_a(A, sock):
 class RatingGetter:
     def __init__(self, k):
         self.config = ConfigX()
-        self.config.rating_cv_path = "./data/cv/TrustFilm"
+        self.config.rating_cv_path = "./data/cv/TrustFilm/"
         self.k = k
         self.user = {}
         self.item = {}
@@ -189,7 +192,7 @@ class Recommender:
             U_B = self.U[:, [self.social_user_map[u] for u in batch_users]]
             V_B = self.V[:, [self.rg.item[i] for i in batch_items]]
 
-            # 使用 PPMM 替换 SSMM
+            
             send_with_length(sock, ("PPMM_D", batch_users))
             U_B_D_B_T = ppmm_a(U_B, sock)
 

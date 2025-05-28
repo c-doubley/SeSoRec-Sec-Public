@@ -1,16 +1,16 @@
 """
-File Name: Recommender3.py
+File Name: SeSoRec_tf_R.py
 
 Description:
     Reproduction version of SeSoRec, including the SSMM protocol
     Uses the TrustFilm dataset
-    Corresponds to Social3.py
+    Corresponds to SeSoRec_tf_S.py
 Functionality:
 
 Usage:
     cd recommended_quality_experiments
-    python SeSoRec_tf_ILS_R.py
-    python SeSoRec_tf_ILS_S.py
+    python SeSoRec_tf_R.py
+    python SeSoRec_tf_S.py
 
 Author:  
 Date: 2025/4/17
@@ -128,7 +128,7 @@ def ssmm_a(P, sock):
 class RatingGetter:
     def __init__(self, k):
         self.config = ConfigX()
-        self.config.rating_cv_path = "./data/cv/TrustFilm"
+        self.config.rating_cv_path = "./data/cv/TrustFilm/"
         self.k = k
         self.user = {}
         self.item = {}

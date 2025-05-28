@@ -116,13 +116,12 @@ SeSoRec-Sec/
 │   ├── painting.py                 # Visualization tools
 │   ├── transfer.py                 # Matrix transformation utilities
 ├── README.md                       # This file
-├── README1.md                      # Deprecated, to be removed
 ```
 
 ## Installation
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/username/SeSoRec-Sec.git
+   git clone  
    cd SeSoRec-Sec
    ```
 
@@ -175,7 +174,8 @@ This section explains how to reproduce the results presented in the paper.
 
 ### Table 1: Social Relationship Leakage
 - **Description**: Extracts user social relationship information from FilmTrust, Epinions, and Douban datasets using the proposed attack on SeSoRec.
-- **Output**: See `results/Table1.png`.
+- **Output**:  
+  ![Table 1](results/Table1.png)
 - **How to Run**:
   ```bash
   python attack_experiments/attack_SeSoRec.py
@@ -183,7 +183,8 @@ This section explains how to reproduce the results presented in the paper.
 
 ### Figure 3: MNIST Leakage Visualization
 - **Description**: Visualizes information leakage from the SeSoRec framework using the MNIST dataset.
-- **Output**: See `results/Figure3.png`.
+- **Output**:  
+  ![Figure 3](results/Figure3.png)
 - **How to Run**:
   ```bash
   python attack_experiments/attack_MNIST_SSMM.py
@@ -192,7 +193,8 @@ This section explains how to reproduce the results presented in the paper.
 
 ### Figure 5: PPMM Protection Visualization
 - **Description**: Demonstrates that the proposed PPMM protocol prevents leakage on the MNIST dataset under the same attack.
-- **Output**: See `results/Figure5.png`.
+- **Output**:  
+  ![Figure 5](results/Figure5.png)
 - **How to Run**:
   ```bash
   python attack_experiments/attack_MNIST_PPMM.py
@@ -200,7 +202,8 @@ This section explains how to reproduce the results presented in the paper.
 
 ### Table 4: Recommendation Quality Evaluation
 - **Description**: Evaluates the recommendation quality of SeSoRec, SeSoRec-Sec, and Soreg on Epinions and FilmTrust datasets, with and without Intra-List Similarity (ILS) metrics.
-- **Output**: See `results/Table4.png`.
+- **Output**:  
+  ![Table 4](results/Table4.png)
 - **How to Run**:
   Run the paired scripts in `recommended_quality_experiments/`. For example, to evaluate SeSoRec on Epinions with ILS:
   ```bash
@@ -216,7 +219,8 @@ This section explains how to reproduce the results presented in the paper.
 
 ### Additional Experiment: CIFAR-10 Leakage Visualization
 - **Description**: Visualizes leakage on the CIFAR-10 dataset (not included in the paper due to less significant results).
-- **Output**: See `results/attack_Cifar_SSMM.png`.
+- **Output**:  
+  ![CIFAR-10 Leakage](results/attack_Cifar_SSMM.png)
 - **How to Run**:
   ```bash
   python attack_experiments/attack_Cifar_SSMM.py
@@ -233,6 +237,5 @@ This section explains how to reproduce the results presented in the paper.
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ## Notes
-- The `README1.md` file is deprecated and will be removed in future updates.
 - Contributions are not currently accepted, as this is a research implementation.
 - For code review, an anonymous gist can be created by uploading this repository to [GitHub Gist](https://gist.github.com).

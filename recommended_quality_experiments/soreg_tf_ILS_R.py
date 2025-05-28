@@ -3,7 +3,7 @@ File name: soreg_tf_ILS_R.py
 
 Description:
     A non-privacy version of SeSoRec, which does not include the SSMM protocol and directly transmits the required matrix data
-     Epinions dataset
+    TrustFilm dataset
     Corresponding to soreg_tf_ILS_S.py
     Includes ILS evaluation for diversity.
 

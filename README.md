@@ -73,7 +73,7 @@ SeSoRec-Sec/
 1. **Clone the Repository**:
    ```bash
    git clone 
-   cd SeSoRec-Sec
+   cd SeSoRec-Sec-Public
    ```
 
 2. **Set Up Python Environment**:

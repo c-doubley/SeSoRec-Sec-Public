@@ -8,9 +8,11 @@ Description:
 Functionality:
 
 Usage:
-    python Recommender3.py
+    cd recommended_quality_experiments
+    python SeSoRec_tf_ILS_R.py
+    python SeSoRec_tf_ILS_S.py
 
-Author: chenyuyue
+Author:  
 Date: 2025/4/17
 """
 

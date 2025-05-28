@@ -120,7 +120,8 @@ class MatrixPainter:
         # 显示并保存图像
         plt.imshow(stacked_imgs, cmap='gray')
         plt.axis('off')
-        plt.savefig('picture/mnist_leak_image.png')
+        # plt.savefig('picture/attack_Cifar_SSMM.png')
+        plt.savefig('picture/attack_MNIST_SSMM_one.png')
         plt.show()
 
 
@@ -229,7 +230,8 @@ class MatrixPainter:
         plt.axis('off')
         # plt.savefig('../picture/final_stacked.png')
         # 在保存图片时，使用bbox_inches='tight'来自动去掉白边 这个是泄露的
-        plt.savefig('picture/mnist_leak_images.png', bbox_inches='tight')
+        # plt.savefig('picture/mnist_leak_images.png', bbox_inches='tight')
+        plt.savefig('picture/attack_MNIST_SSMM.png', bbox_inches='tight')
         # plt.savefig('picture/mnist_no_leak_images.png', bbox_inches='tight')
         plt.show()
 
